@@ -1,0 +1,146 @@
+{
+  "description": "虚构数据，仅示范结构；不包含真实录音，asset 为 missing。",
+  "entities": [
+    {
+      "block_id": "40b82247b20d41549d74d4c55620210b",
+      "body": {
+        "schema_version": 1,
+        "revision": 1,
+        "profile_id": "40b82247b20d41549d74d4c55620210b",
+        "status": "active",
+        "archived_at": null,
+        "deleted_at": null,
+        "links": [],
+        "dedupe_keys": [],
+        "type": "profile",
+        "display_name": "Example learner",
+        "native_language": "zh-CN",
+        "ui_language": "zh-CN",
+        "timezone": "Asia/Shanghai"
+      },
+      "createtime": 1790208000000,
+      "updatetime": 1790208000000
+    },
+    {
+      "block_id": "5d601acb0b934a1990c9fe55c3a83bae",
+      "body": {
+        "schema_version": 1,
+        "revision": 1,
+        "profile_id": "40b82247b20d41549d74d4c55620210b",
+        "status": "active",
+        "archived_at": null,
+        "deleted_at": null,
+        "links": [
+          {
+            "relation": "default_voice",
+            "target_id": "dfedf9191af744ab8d32879120516240"
+          }
+        ],
+        "dedupe_keys": [],
+        "type": "learning_config",
+        "native_language": "zh-CN",
+        "target_language": "en-US",
+        "explanation_language": "zh-CN",
+        "level": "intermediate",
+        "register": "neutral",
+        "review_policy": {
+          "each_final_user_message": true,
+          "uncertain_action": "ask",
+          "save_no_change": true,
+          "version": 1
+        },
+        "default_voice_ids": [
+          "dfedf9191af744ab8d32879120516240"
+        ],
+        "auto_synthesize": false,
+        "playback_rate": 1,
+        "waveform_expanded": true
+      },
+      "createtime": 1790208000000,
+      "updatetime": 1790208000000
+    },
+    {
+      "block_id": "dfedf9191af744ab8d32879120516240",
+      "body": {
+        "schema_version": 1,
+        "revision": 1,
+        "profile_id": "40b82247b20d41549d74d4c55620210b",
+        "status": "active",
+        "archived_at": null,
+        "deleted_at": null,
+        "links": [
+          {
+            "relation": "sample",
+            "target_id": "3453b5c379cd4b4abccc4ff51d280bc6"
+          }
+        ],
+        "dedupe_keys": [],
+        "type": "voice",
+        "name": "我的日常音色",
+        "note": "虚构示例：安静房间录制，正常语速",
+        "voice_revision": 1,
+        "default_sample_id": "3453b5c379cd4b4abccc4ff51d280bc6"
+      },
+      "createtime": 1790208000000,
+      "updatetime": 1790208000000
+    },
+    {
+      "block_id": "3453b5c379cd4b4abccc4ff51d280bc6",
+      "body": {
+        "schema_version": 1,
+        "revision": 1,
+        "profile_id": "40b82247b20d41549d74d4c55620210b",
+        "status": "active",
+        "archived_at": null,
+        "deleted_at": null,
+        "links": [
+          {
+            "relation": "voice",
+            "target_id": "dfedf9191af744ab8d32879120516240"
+          },
+          {
+            "relation": "asset",
+            "target_id": "19cef4f79da64e23a5d46a0cc6b9bd27"
+          }
+        ],
+        "dedupe_keys": [],
+        "type": "voice_sample",
+        "voice_id": "dfedf9191af744ab8d32879120516240",
+        "asset_id": "19cef4f79da64e23a5d46a0cc6b9bd27",
+        "recorded_at": 1790208000000,
+        "language": "zh-CN",
+        "transcript": "这是一段用于展示数据格式的虚构录音文本。",
+        "transcript_verified": false,
+        "quality": {
+          "review_status": "pending"
+        },
+        "duration_ms": 6500
+      },
+      "createtime": 1790208000000,
+      "updatetime": 1790208000000
+    },
+    {
+      "block_id": "19cef4f79da64e23a5d46a0cc6b9bd27",
+      "body": {
+        "schema_version": 1,
+        "revision": 1,
+        "profile_id": "40b82247b20d41549d74d4c55620210b",
+        "status": "missing",
+        "archived_at": null,
+        "deleted_at": null,
+        "links": [],
+        "dedupe_keys": [],
+        "type": "asset",
+        "relative_path": "assets/examples/reference.wav",
+        "sha256": null,
+        "media_type": "audio/wav",
+        "byte_size": null,
+        "duration_ms": 6500,
+        "sample_rate": 24000,
+        "channels": 1
+      },
+      "createtime": 1790208000000,
+      "updatetime": 1790208000000
+    }
+  ]
+}
