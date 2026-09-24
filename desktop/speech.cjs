@@ -3,7 +3,7 @@ const {spawn}=require('node:child_process');
 const {createHash}=require('node:crypto');
 const {newId}=require('../storage/store.cjs');
 const {modelStatus,MODEL,REVISION}=require('./local-model.cjs');
-const {parseWav}=require('./audio.cjs');
+const {parseWav,normalizeCloudWav}=require('./audio.cjs');
 const {normalizeAudioUrl}=require('./audio-url.cjs');
 const CLOUD_MODEL='qwen3-tts-vc-2026-01-22';
 const BASE='https://maas.qianwenaiapi.com/api/v1';
@@ -70,6 +70,7 @@ class Speech {
  async run(job){
   const s=this.service,id=job.body.target_id,controller=new AbortController();this.active={id,controller};
   const temporary=path.join(s.directory,'assets',`${newId()}.pending.wav`);
+  const downloadDirectory=path.join(this.userDirectory,'tts-downloads'),downloadFile=path.join(downloadDirectory,`${id}.wav`);
   try{
    const record=s.entity(id,'synthesis'),voice=s.entity(record.body.voice_id,'voice'),sample=s.entity(record.body.sample_id,'voice_sample');
    if(voice.body.status!=='active')throw new Error('音色已归档，任务未执行');
@@ -82,6 +83,7 @@ class Speech {
     if(this.localRunner)await this.localRunner(request,controller.signal);else await this.runLocal(local.runtime.python,request,controller.signal);
     bytes=fs.readFileSync(temporary);
    }else{
+    if(fs.existsSync(downloadFile)){bytes=fs.readFileSync(downloadFile);}else{
     if(!this.config().body.cloud_enabled)throw new Error('云端已关闭，任务未执行');
     const key=this.secrets.get();if(hash(key)!==record.body.key_fingerprint)throw new Error('API Key 已更换，请重新生成');
     const promptKey=hash(JSON.stringify([record.body.sample_hash,CLOUD_MODEL,record.body.key_fingerprint]));
@@ -96,6 +98,10 @@ class Speech {
     const url=normalizeAudioUrl(result.output?.audio?.url);
     const response=await this.fetch(url,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)]),redirect:'error'});
     if(!response.ok)throw new Error(`下载云端音频失败 (${response.status})`);bytes=await this.readLimited(response,30*1024*1024);
+    const length=response.headers.get('content-length');if(length&&(!response.headers.get('content-encoding')||response.headers.get('content-encoding')==='identity')&&Number(length)!==bytes.length)throw new Error('音频下载不完整，请稍后重试');
+    fs.mkdirSync(downloadDirectory,{recursive:true,mode:0o700});const staging=downloadFile+'.tmp';try{fs.writeFileSync(staging,bytes,{mode:0o600});fs.renameSync(staging,downloadFile);}finally{if(fs.existsSync(staging))fs.unlinkSync(staging);}
+    }
+    bytes=normalizeCloudWav(bytes);
    }
    if(controller.signal.aborted)throw new Error('任务已取消');
    const metadata=parseWav(bytes),assetId=newId(),relative=`assets/${assetId}.wav`,filename=path.join(s.directory,relative);
@@ -105,6 +111,7 @@ class Speech {
     const current=s.entity(id,'synthesis');s.update(current,{status:'succeeded',asset_id:assetId,...metadata,completed_at:Date.now(),links:[...current.body.links,{relation:'asset',target_id:assetId}]});
     s.update(s.entity(job.block_id,'job'),{status:'succeeded',completed_at:Date.now()});
    });}catch(error){fs.unlinkSync(filename);throw error;}
+   if(fs.existsSync(downloadFile))fs.unlinkSync(downloadFile);
   }catch(error){
    const status=controller.signal.aborted?'cancelled':'failed';
    // Provider response bodies and API keys never enter job logs.
