@@ -26,3 +26,6 @@ node_modules/
 
 *.enc
 sayagain-connection.json
+
+*.secret
+*.secret.tmp

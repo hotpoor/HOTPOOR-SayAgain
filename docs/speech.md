@@ -15,7 +15,7 @@
 
 ## 凭据与请求
 
-- API Key 由 Electron safeStorage 系统加密，文件位于应用用户目录的 `qianwen-api-key.enc`。只向页面返回“是否已保存”；输入框保存后清空，不回显密钥。
+- API Key 按用户选择明文保存，文件位于应用用户目录的 `qianwen-api-key.secret`，权限为 0600。不依赖系统钥匙串。旧版加密密钥需要重新填写保存一次。只向页面返回“是否已保存”；输入框保存后清空，不回显密钥。
 - AK 不写入 SQLite、日志、音频下载请求或备份。项目 `.secret` 是用户单独保存的私密文件，Git 忽略，不自动导入客户端。
 - 清除密钥或关闭云端时取消未完成任务。已经发出的请求可能仍由平台计费。
 - 固定 API 地址 `https://maas.qianwenaiapi.com/api/v1`；音色创建使用 `qwen-voice-enrollment`，target_model 和生成 model 均为 `qwen3-tts-vc-2026-01-22`。

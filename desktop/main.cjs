@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, safeStorage, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -23,7 +23,7 @@ else {
     service = new Service(path.join(app.getPath('userData'), 'data'));
     const changed=()=>{if(win&&!win.isDestroyed())win.webContents.send('sayagain:data-changed');};
     bridge=await startBridge(service,app.getPath('userData'),changed);
-    speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData'),safeStorage),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
+    speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
     const methods = ['setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');

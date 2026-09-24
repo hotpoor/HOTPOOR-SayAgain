@@ -15,12 +15,12 @@ class Speech {
   service.store.transaction(()=>{for(const job of service.store.list('job'))if(job.body.kind==='synthesis'&&['queued','running'].includes(job.body.status)){service.update(job,{status:'failed',error:'上次运行中断，请手动重试。云端请求可能已计费。'});const synthesis=service.store.get(job.body.target_id);if(synthesis)service.update(synthesis,{status:'failed',error:'上次运行中断，请手动重试。'});}});
  }
  config(){return this.service.store.list('speech_config')[0];}
- status(){const local=this.localStatus(this.userDirectory);return{config:this.config(),has_api_key:!!this.secrets?.has(),local:{...local,runtime:undefined},cloud_platform:'https://platform.qianwenai.com/',cloud_model:CLOUD_MODEL};}
+ status(){const local=this.localStatus(this.userDirectory),key=this.secrets?.status?.()||{present:!!this.secrets?.has(),usable:!!this.secrets?.has(),error:null};return{config:this.config(),has_api_key:key.usable,api_key_present:key.present,api_key_error:key.error,local:{...local,runtime:undefined},cloud_platform:'https://platform.qianwenai.com/',cloud_model:CLOUD_MODEL};}
  configure(input){
   if(!['local','cloud'].includes(input.mode)||typeof input.cloud_enabled!=='boolean')throw new Error('语音设置无效');
   if(input.mode==='cloud'&&!input.cloud_enabled)throw new Error('请主动启用云端');
   if(input.api_key)this.secrets.set(input.api_key.trim());
-  if(input.mode==='cloud'&&(!input.cloud_enabled||!this.secrets?.has()))throw new Error('请填写 API Key 并主动启用云端');
+  if(input.mode==='cloud'&&!this.secrets?.has())throw new Error(this.secrets?.status?.().error||'请填写 API Key 并主动启用云端');
   if(!input.cloud_enabled)this.cancelCloud();
   return this.service.store.transaction(()=>this.service.update(this.config(),{mode:input.mode,cloud_enabled:input.cloud_enabled}));
  }
@@ -40,7 +40,8 @@ class Speech {
   if(config.mode==='local'){
    const local=this.localStatus(this.userDirectory);if(!local.space_ok)throw new Error(`${local.reason}。请释放空间或在设置中配置千问AI平台云端接入。`);if(!local.installed)throw new Error('请先安装本地 Qwen3-TTS，或主动配置云端接入');runtime=local.runtime;
   }else{
-   if(!config.cloud_enabled||!this.secrets?.has())throw new Error('云端尚未启用');
+   if(!config.cloud_enabled)throw new Error('云端尚未启用');
+   if(!this.secrets?.has())throw new Error(this.secrets?.status?.().error||'请先填写 Qwen AK');
    if(input.cloud_consent!==true)throw new Error('请确认将选定录音和本句文字发送到千问AI平台');
    if(format.sample_rate<24000||format.channels!==1)throw new Error('云端克隆需要 24 kHz 及以上的单声道录音，请在音色库重新导入或录制');
    if(format.duration_ms<10000||format.duration_ms>60000||asset.body.byte_size>10*1024*1024)throw new Error('云端克隆需要 10–60 秒、10 MB 以内的参考录音，建议 10–20 秒');
