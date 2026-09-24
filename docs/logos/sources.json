@@ -1,0 +1,146 @@
+[
+  {
+    "file": "electron.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/electron/electron-original.svg",
+    "sha256": "b5cae00151e368734a36f261dc9a497a93bacad07cf609d75321ccd7e186a50a",
+    "bytes": 1553
+  },
+  {
+    "file": "nodejs.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/nodejs/nodejs-original.svg",
+    "sha256": "3218687c5ea24a4d4c0a33dc5c287da38c33a72dcfe9382469d7ce4e0bf661fb",
+    "bytes": 1806
+  },
+  {
+    "file": "javascript.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/javascript/javascript-original.svg",
+    "sha256": "0656ff65fc8eeacda5c78d7f9ffe91ec1eb919db64f56e0b7dcd460af4bbd36c",
+    "bytes": 1144
+  },
+  {
+    "file": "html5.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/html5/html5-original.svg",
+    "sha256": "34826e5b3315daadf4fa15f723a3c1d5ba4a89277bfd94e22ac4d7d3d54338c5",
+    "bytes": 607
+  },
+  {
+    "file": "css3.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/css3/css3-original.svg",
+    "sha256": "36b7d94b657d571d3f94042acbf6a4c86a5301a222f83f4b4583ad2acf6e297d",
+    "bytes": 778
+  },
+  {
+    "file": "sqlite.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/sqlite/sqlite-original.svg",
+    "sha256": "2b91c30887d3602479ba845cc012ef6ae577fba71eb96705a05b12e35d2c5e7e",
+    "bytes": 2422
+  },
+  {
+    "file": "python.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/python/python-original.svg",
+    "sha256": "71493b4a732f0532b3a03a7a95da3ee11a65766367c8303b901ffbe7bf91a3a2",
+    "bytes": 2300
+  },
+  {
+    "file": "numpy.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/numpy/numpy-original.svg",
+    "sha256": "efd53b9bf8637500d43ece39fe7ac43c972066f7166e408c5fd13e7cb73d7a05",
+    "bytes": 758
+  },
+  {
+    "file": "scikitlearn.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/scikitlearn/scikitlearn-original.svg",
+    "sha256": "d60362a1c43c5571876ebaab923f7783f6f7d3bd64bd78cca765a451dc5e92e2",
+    "bytes": 4664
+  },
+  {
+    "file": "pytorch.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/pytorch/pytorch-original.svg",
+    "sha256": "7fb9c244f59aa3261ed17d6166ef50d0f07e6e5bc4e5211ca53b6e4837e09e75",
+    "bytes": 404
+  },
+  {
+    "file": "playwright.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/playwright/playwright-original.svg",
+    "sha256": "c829ee41780a2c9748b9aeeeec530dc9ceeade68687e252ff7f044c16a8c384b",
+    "bytes": 3760
+  },
+  {
+    "file": "git.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/git/git-original.svg",
+    "sha256": "717a57ea97bf7e86de721dab3e68afac66332a10676d5c9abce4ae6a5a9c9983",
+    "bytes": 778
+  },
+  {
+    "file": "npm.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/npm/npm-original.svg",
+    "sha256": "348709a9c0ed8fc6663413bfb9984360ec12d747183177d1a78eb795f89c5cc3",
+    "bytes": 538
+  },
+  {
+    "file": "github.svg",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/github/github-original.svg",
+    "sha256": "45262793de6292206a895ed63593cdb1eaed82074173f7f4b5bdb3e427ca805a",
+    "bytes": 1866
+  },
+  {
+    "file": "qwen3-tts.png",
+    "url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/qwen3_tts_logo.png",
+    "sha256": "ca98fed49d16e7d8c8736ee83a18a24183bb3246717d3e06943862b25a2852d0",
+    "bytes": 56593
+  },
+  {
+    "file": "minimax.png",
+    "url": "https://raw.githubusercontent.com/MiniMax-AI/MiniMax-M1/main/figures/MiniMaxLogo-Light.png",
+    "sha256": "f6cc2d2bc6e9881493ffbe89d15bfbe26a5a5adb511afa882da22638efac9521",
+    "bytes": 56832
+  },
+  {
+    "file": "svg.svg",
+    "url": "https://www.w3.org/Icons/SVG/svg-logo.svg",
+    "sha256": "e87e47ce3a815123191ed3cfbb1352e53de7e08704b697af513ad35590bd8994",
+    "bytes": 2368
+  },
+  {
+    "file": "onnx.svg",
+    "url": "https://raw.githubusercontent.com/simple-icons/simple-icons/15.16.0/icons/onnx.svg",
+    "sha256": "531d7a9aad43bc520f7a3a4d8f6c68df5e1b28ec8e91c27d53c63e158ef01eef",
+    "bytes": 1797
+  },
+  {
+    "file": "devicon-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/v2.17.0/LICENSE",
+    "sha256": "121194741d4a915b9f5890fdd6dd95121f9b1f816517c792358d72d7c838d664",
+    "bytes": 1072
+  },
+  {
+    "file": "silero.png",
+    "url": "https://silero.ai/content/images/2023/01/Black-logo-silero.png",
+    "sha256": "0dc6c6c3113cdebb2c5575cada3b97bf0ed7da0f8b7dac9769247758f20eba07",
+    "bytes": 3346
+  },
+  {
+    "file": "3d-speaker.png",
+    "url": "https://raw.githubusercontent.com/modelscope/3D-Speaker/main/docs/images/3D-Speaker-logo.png",
+    "sha256": "b7e4b30bec07968b55d75691579e8001ae8fcf9a2267666eaa2d721452cdc1b5",
+    "bytes": 91057
+  },
+  {
+    "file": "onnxruntime.png",
+    "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/main/docs/images/ONNX_Runtime_logo_dark.png",
+    "sha256": "5ce850301fcb4e88a6c1571bd4023429e461a10b57bb7357804b0890adcf36aa",
+    "bytes": 402696
+  },
+  {
+    "file": "ffmpeg.svg",
+    "url": "https://raw.githubusercontent.com/simple-icons/simple-icons/15.16.0/icons/ffmpeg.svg",
+    "sha256": "076e200007de7d3f03ddc970e63a23f7cb46a772d1f4e7c670ceb22a9d46ed35",
+    "bytes": 419
+  },
+  {
+    "file": "simple-icons-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/simple-icons/simple-icons/15.16.0/LICENSE.md",
+    "sha256": "9046848b63a5c92bff14e4accca80bd987e0623b74adf9226ce5198d312b79d5",
+    "bytes": 6569
+  }
+]

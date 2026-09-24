@@ -6,7 +6,7 @@
 
 HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得改进的表达，用母语解释原因，再用自己的音色听一遍、跟读一遍。面向多种母语与目标语言组合，而不局限于英语。
 
-> Electron 源码客户端 v0.2：设置顶部提供多个 Qwen AK 的命名、查看、切换、本地明文保存和平台快捷链接；已接入音色克隆与合成任务流程、13 款克隆模型分组选择与用户默认模型、Skill 本地评估接口。Qwen3-TTS VC 与 Qwen-Audio 3.0 TTS Plus 已完成真实合成，本地模型推理尚未验证；尚无安装包。
+> Electron 源码客户端 v0.2：表达回顾、音色库与语音文件会话已接通。长音频可在本机分人拆条，人工确认后转写；紧凑 / 对话双视图支持原时间轴、说话人备注与头像、SVG 波形和连续发言吸附。本地转写已验证；本地 Qwen3-TTS 合成尚未验证。云端 Qwen 合成已接入，尚无安装包。
 
 ## 为什么做 SayAgain
 
@@ -72,7 +72,46 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 基础窗口、表达回顾、音色库、设置与本地存储已实现。参考录音支持默认展开波形、拖动进度与 0.75× 慢放；表达的克隆语音支持任务状态、取消、缓存和生成后的波形播放。具体边界见[客户端设计](docs/desktop.md)。
 
-“我的录音”支持麦克风连续录音、多文件导入及按会话保存。导入时完整复制并保留原文件，由配套 FFmpeg 解码为 16 kHz 单声道 PCM，FSMN VAD 连续检测自然停顿后另存可逐段播放的 WAV，保留原时间轴位置；不再按 30 秒读取块直接切句。长时间不停顿时最多约 60 秒分段，边界保留少量上下文。界面显示保留原文件、解码和停顿检测进度，支持停止及重试。清除分析结果保留原音频、自然分段和手工笔记；重新分段成功后才替换当前片段，失败保留旧结果。重新分析会逐段转写再区分说话人；模型在批处理中复用，文字逐段保存。一个会话 `block_id` 可包含多个自然语音片段，麦克风采集时的 30 秒存储块可通过重新分段合并检测，每段可播放、编辑文字，或使用本机 FSMN VAD + SenseVoice INT8 转写。模型由 Skill 下载登记；CAMPPlus 支持会话内候选说话人分组（实验功能），Zipformer 支持手动填写中英文关键词并分析已保存录音。长录音分析没有 100 段上限：同一进程顺序处理全部片段并显示进度，保持会话内说话人分组连续；仅当连续 10 分钟没有片段完成时才超时。录音页首先展示可按会话名称或音频文件名搜索的会话列表；进入会话后才显示添加语音文件、录音和片段列表，分析工具与模型状态默认折叠。分组不代表身份确认，重叠发言和短语音可能不准确；关键词目前显示命中次数，不提供精确命中时间。详见[录音模型配置](skills/sayagain/references/recordings.md)。运行 `node scripts/smoke-recordings.cjs` 可验证基本录音流程；传入 `SAYAGAIN_TEST_RUNTIME` 和 `SAYAGAIN_TEST_AUDIO` 还可验证已登记模型的实际客户端转写。模型权重、个人音频和本机路径不提交到仓库。
+## 语音文件模式：让一场对话可以回看、校对、继续使用
+
+我们希望语音文件不只是播放器后面的一大段文字。它应当回答：**哪个文件、谁在什么时间说了什么、哪些是机器判断、哪些已经由人确认。** 当前入口是「我的录音」。
+
+### 已实现的使用流程
+
+1. **建立会话或导入长音频**：保留原文件，支持多个音频来源。列表可按会话名 / 文件名搜索，并显示创建时间、最后更新时间。
+2. **生成候选语音条**：「分人语音条」使用本机 FFmpeg、Silero VAD、CAMPPlus 和聚类策略，把音频拆成最长约 18 秒的条目，另存结果会话。支持语言、自动 / 指定人数、进度与取消。单次最长 4 小时；直接文件导入上限 2 GiB。
+3. **试听、修正并确认**：每段保留原文件起止时间。可改边界、勾选已有的一位 / 多位说话人，或新增标签；“不确定”不与具体人同时选。确认后才能转写。
+4. **转写与校对**：SenseVoice INT8 对确认的区间生成原语言文字，保留说话人归属。人工修订优先显示；修改分段后，旧转写标记待更新。自动文字仍需校对。
+5. **阅读与整理**：按文件折叠、按说话人筛选、按时间正序 / 倒序、分页浏览，并导出带来源、起止时间和备注名的 `transcript.txt`。
+
+### 阅读与播放
+
+| 功能 | 当前行为 |
+| --- | --- |
+| 紧凑 / 对话 Tab | 紧凑版按头像、姓名、时间、正文与操作对齐；对话版采用气泡。切换不重建输入框，保留未保存草稿，支持方向键切换。 |
+| 文件分组 | 文件头显示序号、时间、时长、说话人和整体播放；默认展示 6 条，可展开本页更多内容，每页最多 40 条。没有完整原文件时明确显示“顺播本页”。 |
+| SVG 波形与局部时间轴 | 使用已保存的音频峰值，支持 1–5 倍缩放、随缩放变细的时间刻度、点击定位与播放竖线。放大只揭示已有采样细节，不生成新的音频信息。 |
+| 独立整段进度 | 波形支持横向滚动，滚动条外观隐藏、高度固定；下面的圆点条与波形留出间距，明确标注“整段进度”。 |
+| 说话人资料 | 当前会话内可改备注名、说明和本地头像。PNG / JPEG / WebP 图片居中裁切后保存，可恢复文字头像；修改同步到文件头、发言行、筛选与文字导出中的名称。 |
+| 连续发言吸附 | 同一人的连续相邻片段只显示一组头像和姓名，在该组内随滚动吸附；换人时替换。一人一句、未知 / 多人标签和不连续筛选结果不合并，窄窗口逐条显示。 |
+| 原始材料与修改 | 原文件、人工文字、确认边界分别保存。清除分析保留音频和手工笔记；重新分段成功后才替换相应结果。 |
+
+麦克风连续录音与普通多文件导入也已实现。**普通录音的自然停顿分段**走 FFmpeg + FSMN VAD 路径；**分人短条**优先走 Silero + CAMPPlus；**确认后转写**使用 SenseVoice，不需要重新跑 VAD。它们的模型依赖和用途不同，不能因为一条路径通过测试就认定其余路径也已验证。Zipformer 关键词检测属于额外工具，目前不提供精确命中时间。
+
+**当前边界**：候选标签不是身份识别，短插话、声线相近和重叠发言仍可能出错；没有做音源分离或通用准确率评估。翻译、分享、字级跟随、语义章节和手机独立运行均未作为已完成功能提供。转写不会自动提交为表达纠错材料；本地语音识别与云端 / 本地语音合成是不同流程。
+
+详见[策略与复现](docs/speaker-pipeline.md)、[模型配置](skills/sayagain/references/recordings.md)以及[方案演进记录](DEVELOPMENT_LOG.md)。
+
+### 下一步期待的语音文件模式
+
+**明确优先级：识别原文 → 校对与回放 → 再考虑翻译。翻译延后，本轮不推进。**
+
+下面是方向，尚不是功能承诺：把长文件、说话人轮次、短语音条和可校对文字连成一套稳定工作流；让定位、试听、纠错、继续阅读更少打断，同时能看见原材料和修改依据。
+
+- 先提升换人边界、短插话与重叠发言的可复核性，再决定是否引入更复杂模型。
+- 评估播放跟随、区间循环、按段继续处理和任务恢复，明确整段、当前视口、当前片段各自的状态。
+- 先让识别原文及时、完整地出现在对应发言下，确保原音频、区间和文字一一对应；翻译、语义章节和分享之后再评估。
+- 以不同语言、人数、音质的实际样例持续评估；CPU 能运行不等于手机体验已达标。
 
 ![表达回顾界面，使用经授权的真实英语和日语片段重建](docs/screenshots/review-desktop.png)
 
@@ -82,6 +121,77 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 ![音色库界面，使用模拟麦克风测试音频](docs/screenshots/voices-desktop.png)
 
 </details>
+
+## 技术栈与模型
+
+桌面界面是原生 HTML / CSS / JavaScript，没有引入 React 或 Vue。Electron 主进程管理本地文件、SQLite、受限 IPC 与任务；Python worker 执行音频推理。版本来自本仓库依赖清单，并非对上游最新版本的声明。
+
+### 桌面、界面与存储
+
+| 标识 | 技术 | 在项目中的用途 |
+| --- | --- | --- |
+| <img src="docs/logos/electron.svg" width="32" height="32" alt="Electron 44.4.5"> | [Electron 44.4.5](https://www.electronjs.org/) | 桌面窗口、主进程 / renderer 隔离、preload 白名单 IPC。 |
+| <img src="docs/logos/nodejs.svg" width="32" height="32" alt="Node.js ≥ 22.13"> | [Node.js ≥ 22.13](https://nodejs.org/) | 本地服务、文件与子进程；通过内置 `node:sqlite` 访问 SQLite。 |
+| <img src="docs/logos/javascript.svg" width="32" height="32" alt="JavaScript"> | [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript) | 业务规则、页面交互与开发脚本。 |
+| <img src="docs/logos/html5.svg" width="32" height="32" alt="HTML"> | [HTML](https://developer.mozilla.org/en-US/docs/Web/HTML) | 语义化页面、原生音频与表单。 |
+| <img src="docs/logos/css3.svg" width="32" height="32" alt="CSS"> | [CSS](https://developer.mozilla.org/en-US/docs/Web/CSS) | 响应式排版、Grid、连续发言 sticky 身份栏。 |
+| <img src="docs/logos/svg.svg" width="32" height="32" alt="SVG / Web Audio"> | [SVG / Web Audio](https://www.w3.org/Graphics/SVG/) | SVG 呈现波形、刻度与播放竖线；Web Audio 用于麦克风采集。SVG 标识不代表 Web Audio 有同一商标。 |
+| <img src="docs/logos/sqlite.svg" width="32" height="32" alt="SQLite"> | [SQLite](https://sqlite.org/) | 三库实体存储、事务、修订检查、备份和恢复。 |
+
+### 本地语音识别与分人处理（当前优先）
+
+```text
+音频文件 → FFmpeg 统一格式 → VAD 找有声区间 → CAMPPlus 特征与聚类
+                                              ↓
+原文件时间轴 ← 候选说话人 / 短语音条 → 人工试听并确认
+                                              ↓
+                              SenseVoice INT8 识别原文
+                                              ↓
+                      按人和时间阅读 → 校对 → 回放 → 导出
+```
+
+**先做好识别原文，再考虑翻译。** 模型识别内容应是发言行的正文；缺少文字时明确显示“尚未转写”，不能用示例文本或翻译占位冒充识别结果。确认步骤用于校正机器候选，不是自动认定真人身份。
+
+| 标识 | 技术 / 模型 | 用途与边界 |
+| --- | --- | --- |
+| <img src="docs/logos/python.svg" width="64" alt="Python 3.10–3.12"> | [Python 3.10–3.12](https://www.python.org/) | 独立语音 worker 环境；基础客户端无需 Python。 |
+| <img src="docs/logos/ffmpeg.svg" width="64" alt="FFmpeg / ffmpeg-static 5.3.0"> | [FFmpeg / ffmpeg-static 5.3.0](https://ffmpeg.org/) | 解码与转换为 16 kHz 单声道 PCM；5.3.0 是 npm 包版本，不是 FFmpeg 二进制版本。 |
+| <img src="docs/logos/silero.png" width="64" alt="Silero VAD"> | [Silero VAD](https://github.com/snakers4/silero-vad) | 新分人流程优先使用的语音活动检测；不负责辨认说话人。 |
+| <img src="docs/logos/3d-speaker.png" width="64" alt="3D-Speaker / CAMPPlus"> | [3D-Speaker / CAMPPlus](https://github.com/modelscope/3D-Speaker) | 提取说话人特征，生成会话内候选分组。图为上游 3D-Speaker 项目标识。 |
+| <img src="docs/logos/numpy.svg" width="64" alt="NumPy 1.26.4"> | [NumPy 1.26.4](https://numpy.org/) | 采样、向量归一化、能量分析与窗口计算。 |
+| <img src="docs/logos/scikitlearn.svg" width="64" alt="scikit-learn 1.5.2"> | [scikit-learn 1.5.2](https://scikit-learn.org/) | KMeans 与轮廓系数用于人数启发式和候选聚类。 |
+| <img src="docs/logos/onnx.svg" width="64" alt="ONNX"> | [ONNX](https://onnx.ai/) | 本地模型格式。 |
+| <img src="docs/logos/onnxruntime.png" width="64" alt="ONNX Runtime 1.23.2"> | [ONNX Runtime 1.23.2](https://onnxruntime.ai/) | 完整录音环境的模型执行依赖；最小分人环境与旧录音依赖分别安装。 |
+| — | [sherpa-onnx 1.13.8](https://github.com/k2-fsa/sherpa-onnx) | 执行 Silero、CAMPPlus、SenseVoice 等模型；不是一个通用大语言模型。 |
+| — | [SenseVoice INT8](https://github.com/FunAudioLLM/SenseVoice) | 对已确认区间识别原语言文字，本地 CPU 流程已实测。 |
+| — | [FunASR / FSMN VAD](https://github.com/modelscope/FunASR) | `funasr-onnx 0.4.3` 用于旧录音自然停顿分段或 VAD 回退，不是新流程的必装组件。 |
+| — | [Zipformer / sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | 额外的关键词检测，不替代全文识别；最小分人环境未配置。 |
+| — | [SoundFile 0.14.0](https://python-soundfile.readthedocs.io/)、[soxr 1.1.0](https://python-soxr.readthedocs.io/) | WAV 读写及需要时重采样。完整环境还包括 Requests、PyYAML、pypinyin、SentencePiece 等辅助依赖。 |
+
+模型权重单独登记，不随仓库提交。最小依赖见 [speaker-pipeline-requirements.txt](skills/sayagain/scripts/speaker-pipeline-requirements.txt)，完整旧录音环境见 [recording-requirements.txt](skills/sayagain/scripts/recording-requirements.txt)。VAD、说话人特征、聚类与 ASR 各司其职，候选人数与模型相似度不能直接当作准确率。
+
+### 语音合成与外部接入（与识别分开）
+
+| 标识 | 技术 | 当前角色 |
+| --- | --- | --- |
+| <img src="docs/logos/qwen3-tts.png" width="110" alt="Qwen3-TTS"> | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) / Qwen 云端 TTS | 本地 `qwen-tts 0.1.1` worker 与安装器已提供，本机推理未验证；云端 Qwen3-TTS VC、Qwen-Audio 3.0 TTS Plus 已做真实合成。图为 Qwen3-TTS 项目标识。 |
+| <img src="docs/logos/pytorch.svg" width="32" height="32" alt="PyTorch"> | [PyTorch](https://pytorch.org/) | 本地 Qwen TTS 环境依赖；不是当前 ONNX 语音识别的统一运行时。 |
+| <img src="docs/logos/minimax.png" width="110" alt="MiniMax"> | [MiniMax](https://www.minimax.io/) | 音色克隆 / 语音合成适配已编写，模拟接口测试通过；不能据此宣称已真实合成验证。 |
+| — | [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) | Qwen 平台中的合成模型选项，未在本项目独立验证本地 CosyVoice 推理。 |
+| — | Skill、本机 HTTP 桥接、`ws 8.21.3` | 宿主表达评估、授权本机调用和实时合成协议；Codex / ChatGPT 是使用与设计参考，不是本地 ASR 运行依赖。 |
+
+### 开发与验证
+
+<p>
+<a href="https://playwright.dev/"><img src="docs/logos/playwright.svg" width="40" height="40" alt="Playwright"></a>&nbsp;
+<a href="https://git-scm.com/"><img src="docs/logos/git.svg" width="40" height="40" alt="Git"></a>&nbsp;
+<a href="https://www.npmjs.com/"><img src="docs/logos/npm.svg" width="40" height="40" alt="npm"></a>&nbsp;
+<a href="https://github.com/hotpoor/HOTPOOR-SayAgain"><img src="docs/logos/github.svg" width="40" height="40" alt="GitHub"></a>
+</p>
+
+Playwright 1.63.0 执行隔离 Electron 交互检查；Node 内置测试运行器验证业务 / 存储规则；Python 测试验证拆分算法。npm 锁定客户端依赖，Git / GitHub 管理版本与远端合并。测试样例和模拟接口不等于真实多人识别质量已验收。
+
+Logo 使用本地文件，避免 README 依赖即时图片服务；来源、版本、校验值及署名见 [Logo 来源说明](docs/logos/README.md)。没有查证到独立标识的模型 / 库保留文字链接，不把架构图、组织头像或其他品牌冒充其 Logo。
 
 ## 当前进度
 
@@ -97,10 +207,11 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 | Skill 与表达评估 | 接入已实现 | 完整 Skill 复制/导出、本机授权桥接、结构化评估与回执；宿主每轮自动触发待验证 |
 | 本地语音合成 | worker / 安装器已实现 | 空间预检、固定版本模型；当前机器空间不足，未下载或验证推理 |
 | Electron 客户端界面 | 源码版可运行 | 语言引导、手动记录、搜索/收藏/归档、音色库、参考录音播放、全屏和窄窗口 |
+| 语音文件与分人短条 | 已实现，识别质量仍需复核 | 原文件保留、候选分组、确认后转写、双视图、备注 / 头像、SVG 时间轴、连续发言吸附与文本导出 |
 | 客户端逐轮接入 | 待实现 | 分别验证事件触发、接入范围和处理回执 |
 | 云端 API | Qwen 接入已实现 | AK 本地保存、平台跳转、音色复用与合成；Qwen3-TTS VC 与 Qwen-Audio Plus 已实测，其余已做模拟接口测试 |
 
-已通过 38 项数据、评估和语音流程测试与 Electron 端到端检查，覆盖录音、播放、归档、AK 本地保存/移除、平台跳转及退出重开后的持久化。录音测试使用模拟麦克风，不代表真实麦克风听感、Qwen 模型运行或自动客户端接入已验证。当前只在 macOS 做过桌面验证。
+已通过 60 项数据、评估和语音流程测试，并完成录音阅读界面的隔离 Electron 检查，覆盖录音、播放、归档、AK 本地保存/移除、平台跳转及退出重开后的持久化。录音测试使用模拟麦克风，不代表真实麦克风听感、Qwen 模型运行或自动客户端接入已验证。当前只在 macOS 做过桌面验证。
 
 ## 从源码运行
 
@@ -121,6 +232,7 @@ npm start
 npm test                 # SQLite 与业务规则测试
 npm run test:desktop     # Electron 检查，使用临时目录与模拟麦克风
 npm run docs:check       # 开发日志、传记和图表同步检查
+node scripts/smoke-recording-chat.cjs # 隔离会话：头像、双视图、SVG、吸附、导出等
 ```
 
 完整使用方式与当前限制见[本地开发说明](docs/development.md)。
@@ -169,9 +281,3 @@ npm run docs:check       # 开发日志、传记和图表同步检查
 ## 一起完善
 
 欢迎通过 [Issues](https://github.com/hotpoor/HOTPOOR-SayAgain/issues) 分享希望支持的语言对、客户端接入需求、本地硬件体验，以及表达回顾和跟读方面的建议。反馈时请使用虚构或脱敏的示例。
-
-### 本地分人语音条
-
-「我的录音」支持长音频本地导入、说话人候选分组、按停顿拆条，试听确认后逐条转写，结果另存会话，原录音与人工文字保留。支持进度、取消、语言和人数选项。详见[策略与复现说明](docs/speaker-pipeline.md)。
-
-录音转写采用确认流程：先识别候选说话人，再逐片段修正、试听并确认时间段及名称，最后转写原语言文字。未确认的片段不可转写；转写结果保留说话人和确认后的时间边界。确认后的名称用于会话内人数统计，不代表身份识别。手工笔记和原音频保留。
