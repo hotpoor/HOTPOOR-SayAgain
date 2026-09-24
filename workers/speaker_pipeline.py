@@ -132,7 +132,19 @@ def run(request):
         remaining = MAX_SECONDS-duration
         if remaining <= 0:
             raise ValueError('Total audio exceeds four hours')
-        subprocess.run([request.get('ffmpeg') or 'ffmpeg', '-nostdin', '-v', 'error', '-y', '-i', source['audio'], '-t', str(remaining+1), '-vn', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(target)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=600)
+        inputs = source.get('audio_parts') or [source['audio']]
+        if len(inputs) == 1:
+            subprocess.run([request.get('ffmpeg') or 'ffmpeg', '-nostdin', '-v', 'error', '-y', '-i', inputs[0], '-t', str(remaining+1), '-vn', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(target)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=600)
+        else:
+            # Decode separately, then stream into one WAV: capture checkpoints are not speech boundaries.
+            with sf.SoundFile(target, mode='w', samplerate=16000, channels=1, subtype='PCM_16') as joined:
+                for part_index, filename in enumerate(inputs):
+                    part = out/f'part-{si}-{part_index}.wav'
+                    budget = remaining - joined.tell()/16000
+                    if budget <= 0: raise ValueError('Total audio exceeds four hours')
+                    subprocess.run([request.get('ffmpeg') or 'ffmpeg', '-nostdin', '-v', 'error', '-y', '-i', filename, '-t', str(budget+1), '-vn', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(part)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=600)
+                    for block in sf.blocks(part, blocksize=65536, dtype='float32'): joined.write(block)
+                    part.unlink()
         audio, rate = sf.read(target, dtype='float32')
         duration += len(audio)/rate
         if duration > MAX_SECONDS:
@@ -156,10 +168,12 @@ def run(request):
                     embeddings.append(e/norm); windows.append((t,stop,ri))
         progress('voiceprints', si+1, len(sources))
     if not regions: raise ValueError('No speech found')
-    if not embeddings: raise ValueError('Speech is too short for speaker grouping')
     progress('cluster')
-    windows = np.array(windows); embeddings = np.array(embeddings)
-    labels, similarity, stats = cluster(embeddings, windows, config['speaker_count'])
+    windows = np.array(windows).reshape((-1,3)); embeddings = np.array(embeddings)
+    if len(embeddings):
+        labels, similarity, stats = cluster(embeddings, windows, config['speaker_count'])
+    else:
+        labels = []; similarity = []; stats = {'speakers': 0, 'reason': 'speech_too_short'}
     turns = []
     for ri,(si,a,b) in enumerate(regions):
         ids = np.flatnonzero(windows[:,2] == ri)
@@ -210,7 +224,8 @@ def run(request):
     import sklearn, platform
     result={'runtime_versions':{'python':platform.python_version(),'numpy':np.__version__,'scikit_learn':sklearn.__version__},'version':VERSION,'options':config,'vad':vad_name,'clustering':stats,'model_hashes':hashes,'sherpa_onnx_version':sh.__version__,'duration_ms':round(duration*1000),'clips':clips}
     (out/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-    for f in decoded:f.unlink()
+    for si,f in enumerate(decoded):
+        if len(sources[si].get('audio_parts', [])) <= 1: f.unlink()
     progress('complete',len(clips),len(clips))
     return result
 

@@ -1,12 +1,12 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
 const names={silero:'Silero VAD',fsmn:'FSMN VAD',sensevoice:'SenseVoice INT8',campplus:'CAMPPlus',zipformer:'Zipformer 关键词'};
 function runtime(directory){try{return JSON.parse(fs.readFileSync(path.join(directory,'recording-models/runtime.json'),'utf8'));}catch{return null;}}
-function status(directory){const data=runtime(directory);return Object.entries(names).map(([key,name])=>{const m=data?.models?.[key];return{name,key,device:data?.device||'cpu',status:!m||!fs.existsSync(m.path)?'未登记或文件缺失':m.verified?'本机推理验证通过':'已下载登记 · 待推理验证'};});}
+function status(directory){const data=runtime(directory);return Object.entries(names).filter(([key])=>['silero','campplus','sensevoice'].includes(key)||(key==='fsmn'&&!data?.models?.silero)).map(([key,name])=>{const m=data?.models?.[key];return{name,key,device:data?.device||'cpu',status:!m||!fs.existsSync(m.path)?'未登记或文件缺失':m.verified?'本机推理验证通过':'已下载登记 · 待推理验证'};});}
 const running=new Set();
 async function transcribe(service,directory,input){
  const clip=service.entity(input.id,'recording_clip'),r=runtime(directory);
  if(require('./recording-import.cjs').isBusy(clip.body.recording_id)||clip.body.status==='archived')throw Error('会话正在重新分段或片段已替换');
- const turns=require('./confirmed-turns.cjs').confirmed(clip);
+ const turns=require('./confirmed-turns.cjs').transcribable(clip);
  if(module.exports.isBusy(service,clip.body.recording_id))throw Error('此会话正在处理，请等待完成');
  if(!r?.python||!['sensevoice'].every(k=>r.models?.[k]&&fs.existsSync(r.models[k].path)))throw Error('请先让 Skill 安装并登记 SenseVoice');
  running.add(input.id);
@@ -63,11 +63,11 @@ async function transcribeAll(service,directory,input,onProgress=()=>{}){
  if(!r?.python||!['sensevoice'].every(k=>r.models?.[k]&&fs.existsSync(r.models[k].path)))throw Error('请先登记 SenseVoice');
  const clips=service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived'&&c.body.transcript_status!=='user_reviewed').sort((a,b)=>a.body.sequence-b.body.sequence);
  if(!clips.length)return;
- for(const clip of clips)require('./confirmed-turns.cjs').confirmed(clip);
+ for(const clip of clips)require('./confirmed-turns.cjs').transcribable(clip);
  analyzing.add(input.id);
  try{
   onProgress({completed:0,total:clips.length});
-  await require('./analysis-worker.cjs').runAnalysisWorker(r.python,path.join(__dirname,'../workers/transcribe_recording_batch.py'),{models:r.models,clips:clips.map(c=>({id:c.block_id,language:c.body.transcription_language||'auto',turns:require('./confirmed-turns.cjs').confirmed(c),audio:service.asset(c.body.asset_id).filename}))},onProgress,{onClip:item=>{
+  await require('./analysis-worker.cjs').runAnalysisWorker(r.python,path.join(__dirname,'../workers/transcribe_recording_batch.py'),{models:r.models,clips:clips.map(c=>({id:c.block_id,language:c.body.transcription_language||'auto',turns:require('./confirmed-turns.cjs').transcribable(c),audio:service.asset(c.body.asset_id).filename}))},onProgress,{onClip:item=>{
    const current=service.entity(item.id,'recording_clip'),original=clips.find(c=>c.block_id===item.id);
    if(current.body.revision!==original.body.revision||service.entity(input.id,'recording').body.revision!==session.body.revision)throw Error('录音或文字已改变，已停止覆盖');
    if(typeof item.text!=='string'||item.text.length>20000)throw Error('转写结果无效');

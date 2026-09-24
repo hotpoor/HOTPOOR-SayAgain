@@ -36,14 +36,24 @@ test('pipeline requires explicit model registration without downloading or creat
  assert.throws(()=>pipeline.start({filename:path.join(root,'00001.wav')}),/登记/);assert.equal(pipeline.status().state,'idle');assert.equal(s.store.list('recording').length,0);
 });
 
-test('candidate import preserves original and requires confirmation before transcription',t=>{
+test('candidate import preserves original and permits transcription without confirming identity',t=>{
  const {root,s,manifest,sources}=fixture(t);manifest.clips[0].text='';sources[0].audio=path.join(root,'00001.wav');
  const result=persist(s,root,manifest,sources,'Candidate');
  const clip=s.store.list('recording_clip').find(c=>c.body.recording_id===result.block_id);
  assert.equal(clip.body.transcript,'');assert.equal(clip.body.transcription_language,'en');
- assert.throws(()=>require('../desktop/confirmed-turns.cjs').confirmed(clip),/确认/);
+ assert.equal(require('../desktop/confirmed-turns.cjs').transcribable(clip)[0].speaker,'A');assert.equal(clip.body.speaker_analysis.status,'machine_unreviewed');
  const source=s.store.list('recording_source').find(r=>r.body.recording_id===result.block_id);
  assert.deepEqual(fs.readFileSync(s.asset(source.body.original_asset_id).filename),wav());
  s.confirmRecordingTurns({id:clip.block_id,revision:clip.body.revision,segments:clip.body.speaker_analysis.segments});
  assert.equal(require('../desktop/confirmed-turns.cjs').confirmed(s.entity(clip.block_id,'recording_clip'))[0].speaker,'A');
+});
+
+test('microphone checkpoints join only within a contiguous take',()=>{
+ const {groupSources}=require('../desktop/speaker-pipeline.cjs');
+ const first={id:'a',source:'microphone',audio:'a.wav',offset_ms:0,captured_at:100000,duration_ms:30000};
+ const second={...first,id:'b',audio:'b.wav',offset_ms:30000,captured_at:130000};
+ const later={...first,id:'c',audio:'c.wav',captured_at:200000};
+ const result=groupSources([first,second,later,{...second,source:'import'}]);
+ assert.equal(result.length,3);assert.deepEqual(result[0].audio_parts,['a.wav','b.wav']);assert.equal(result[0].duration_ms,60000);assert.equal(result[0].members.length,2);assert.equal(first.duration_ms,30000);
+ assert.equal(groupSources([first,{...second,offset_ms:31000}]).length,2);
 });

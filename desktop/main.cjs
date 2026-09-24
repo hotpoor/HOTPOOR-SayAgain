@@ -43,7 +43,7 @@ else {
       if(!trusted(event))throw Error('无效来源');
       if(input?.action==='status')return speakerPipeline.status();
       if(input?.action==='cancel')return speakerPipeline.cancel();
-      if(input?.action==='session')return speakerPipeline.start({id:input.id,options:input.options});
+      if(input?.action==='session')return speakerPipeline.start({id:input.id,clip_ids:input.clip_ids,options:input.options});
       if(input?.action==='import'){
         if(speakerPipeline.status().state==='running')throw Error('已有任务正在运行');
         const result=await dialog.showOpenDialog(win,{title:'导入音频并分人拆条',properties:['openFile'],filters:[{name:'音频',extensions:['mp3','wav','m4a','flac','ogg','aac','opus']} ]});
@@ -57,10 +57,6 @@ else {
       const progress=stage=>p=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,stage,...p});};
       return models.transcribeAll(service,app.getPath('userData'),input,progress('transcribing'));
     });
-    ipcMain.handle('sayagain:resegmentRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').resegment(service,input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-import-progress',progress);});});
-    ipcMain.handle('sayagain:importRecordingFiles',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').importFiles(service,input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-import-progress',progress);});});
-    ipcMain.handle('sayagain:cancelRecordingImport',(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').cancel(input.id);});
-    ipcMain.handle('sayagain:analyzeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').analyze(service,app.getPath('userData'),input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,...progress});});});
     ipcMain.handle('sayagain:recordingModels',event=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').status(app.getPath('userData'));});
     ipcMain.handle('sayagain:transcribeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').transcribe(service,app.getPath('userData'),input);});
     ipcMain.handle('sayagain:skillPackage',async(event,action)=>{

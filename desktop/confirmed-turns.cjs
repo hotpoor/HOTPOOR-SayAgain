@@ -13,6 +13,7 @@ function validateTurns(segments,duration){
  });
 }
 function confirmed(clip){if(clip.body.speaker_analysis?.status!=='user_confirmed')throw Error('请先确认说话人和时间段，再转写');return validateTurns(clip.body.speaker_analysis.segments,clip.body.duration_ms);}
+function transcribable(clip){return validateTurns(clip.body.speaker_analysis?.segments?.length?clip.body.speaker_analysis.segments:[{start_ms:0,end_ms:clip.body.duration_ms,speaker:clip.body.speaker||'不确定'}],clip.body.duration_ms);}
 function install(Service){Service.prototype.confirmRecordingTurns=function(input){
  const clip=this.entity(input.id,'recording_clip');
  if(clip.body.status==='archived'||clip.body.revision!==input.revision)throw Error('片段已改变，请刷新');
@@ -28,4 +29,4 @@ function install(Service){Service.prototype.confirmRecordingTurns=function(input
   return this.update(clip,{speaker_analysis:{segments,status:'user_confirmed',created_at:Date.now()},needs_review:false,transcript_turns_stale:!!clip.body.transcript});
  });
 };}
-module.exports={validateTurns,confirmed,install};
+module.exports={validateTurns,confirmed,transcribable,install};

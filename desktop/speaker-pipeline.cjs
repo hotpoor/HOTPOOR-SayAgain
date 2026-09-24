@@ -30,6 +30,16 @@ function validateManifest(manifest,sources,folder){
   return{...c,format,filename};
  });
 }
+// Join adjacent microphone save blocks from the same take, never unrelated recordings.
+function groupSources(sources){
+ const groups=[];
+ for(const source of sources){const previous=groups.at(-1);
+  if(previous&&source.source==='microphone'&&previous.source==='microphone'&&Math.abs((source.captured_at-source.offset_ms)-(previous.captured_at-previous.offset_ms))<2&&Math.abs(source.offset_ms-previous.offset_ms-previous.duration_ms)<2){
+   previous.members.push(source);previous.audio_parts.push(source.audio);previous.duration_ms+=source.duration_ms;
+  }else groups.push({...source,members:[source],audio_parts:[source.audio]});
+ }
+ return groups;
+}
 function persist(service,folder,manifest,sources,title,parent){
  const rows=validateManifest(manifest,sources,folder),created=[],recordingId=newId();
  try{
@@ -44,10 +54,16 @@ function persist(service,folder,manifest,sources,title,parent){
    try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
    return{...c,asset_id,relative_path,sha256:createHash('sha256').update(bytes).digest('hex'),byte_size:bytes.length};
   });
+  const joinedAssets=new Map();
+  for(const [index,source] of sources.entries())if(source.audio_parts?.length>1){
+   const asset_id=newId(),relative_path=`assets/${asset_id}.wav`,filename=path.join(service.directory,relative_path);
+   fs.copyFileSync(path.join(folder,`input-${String(index).padStart(4,'0')}.wav`),filename,fs.constants.COPYFILE_EXCL);created.push(filename);
+   joinedAssets.set(index,{asset_id,relative_path,byte_size:fs.statSync(filename).size});
+  }
   return service.store.transaction(()=>{
    if(parent){
     if(service.entity(parent.block_id,'recording').body.revision!==parent.body.revision)throw Error('原会话已改变，请重新处理');
-    for(const source of sources)if(service.entity(source.id,'recording_clip').body.revision!==source.revision)throw Error('原片段已改变，请重新处理');
+    for(const source of sources.flatMap(s=>s.members||[s]))if(service.entity(source.id,'recording_clip').body.revision!==source.revision)throw Error('原片段已改变，请重新处理');
    }
    const {clips,...run}=manifest;
    const session=service.store.put({type:'recording',profile_id:service.profileId,title:String(title+' · 分人语音条').slice(0,120),clip_count:prepared.length,duration_ms:prepared.reduce((n,c)=>n+c.format.duration_ms,0),pipeline:{...run,created_at:Date.now(),review_count:prepared.filter(c=>c.review).length,status:'machine_unreviewed'},links:parent?[{relation:'source_recording',target_id:parent.block_id}]:[]},{id:recordingId});
@@ -56,10 +72,15 @@ function persist(service,folder,manifest,sources,title,parent){
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:original.relative,media_type:original.ext==='.mp3'?'audio/mpeg':original.ext==='.wav'?'audio/wav':'audio/mp4',byte_size:original.byte_size},{id:original.id});
     sourceId=service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:sources[0].name,sequence:0,original_asset_id:original.id,input_assets:[original.id],duration_ms:manifest.duration_ms,segmented:true}).block_id;
    }
+   const sourceIds=new Map();
+   if(parent)for(const [index,source] of sources.entries())if(source.members){
+    const joined=joinedAssets.get(index);if(joined)service.store.put({type:'asset',profile_id:service.profileId,relative_path:joined.relative_path,media_type:'audio/wav',byte_size:joined.byte_size,duration_ms:source.duration_ms},{id:joined.asset_id});
+    sourceIds.set(index,service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:source.name,sequence:index,original_asset_id:joined?.asset_id||source.members[0].asset_id,input_assets:source.members.map(s=>s.asset_id),legacy:true,duration_ms:source.duration_ms,segmented:true}).block_id);
+   }
    for(const [sequence,c] of prepared.entries()){
-    const source=sources[c.source_index];
+    const source=sources[c.source_index];const clipSourceId=sourceId||sourceIds.get(c.source_index);
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:c.relative_path,sha256:c.sha256,media_type:'audio/wav',byte_size:c.byte_size,duration_ms:c.format.duration_ms},{id:c.asset_id});
-    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(sourceId?{recording_source_id:sourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence,source:'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker:c.speaker}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:c.speaker||'不确定'}]},speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.id||null,source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.id?[{relation:'source_clip',target_id:source.id}]:[])]});
+    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(clipSourceId?{recording_source_id:clipSourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence,source:'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker:c.speaker}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:c.speaker||'不确定'}]},speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.members?.length>1?null:source.id||null,source_clip_ids:(source.members||[source]).map(s=>s.id).filter(Boolean),source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.members||[source]).filter(s=>s.id).map(s=>({relation:'source_clip',target_id:s.id}))]});
    }
    return session;
   });
@@ -78,10 +99,16 @@ class SpeakerPipeline{
   }else{
    if(require('./recording-import.cjs').isBusy(input.id)||require('./recording-models.cjs').isBusy(this.service,input.id))throw Error('此会话正在处理');
    parent=this.service.entity(input.id,'recording');title=parent.body.title;
-   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived').sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.duration_ms,captured_at:c.body.captured_at}));
+   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived').sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,asset_id:c.body.asset_id,source:c.body.source,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.duration_ms,captured_at:c.body.captured_at}));
+   if(input.clip_ids!==undefined){
+    if(!Array.isArray(input.clip_ids)||!input.clip_ids.length||new Set(input.clip_ids).size!==input.clip_ids.length||input.clip_ids.some(id=>!sources.some(s=>s.id===id)))throw Error('录音素材选择无效');
+    sources=sources.filter(s=>input.clip_ids.includes(s.id));
+    if(sources.every(s=>s.source==='microphone'))sources.sort((a,b)=>a.captured_at-b.captured_at);
+   }
    if(!sources.length||sources.length>2000)throw Error('支持1–2000个原始片段');
    if(sources.reduce((n,c)=>n+c.duration_ms,0)>14400000)throw Error('一次最多处理4小时音频');
   }
+  sources=groupSources(sources);
   const folder=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-speaker-'));
   this.job={id:newId(),state:'running',stage:'starting',done:0,total:0,started_at:Date.now()};
   let child;try{child=spawn(runtime.python,[path.join(__dirname,'../workers/speaker_pipeline.py')],{detached:process.platform!=='win32',windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PYTHONIOENCODING:'utf-8',OPENBLAS_NUM_THREADS:'1',OMP_NUM_THREADS:'4'}});}catch(e){fs.rmSync(folder,{recursive:true,force:true});this.job={...this.job,state:'failed',error:e.message};throw e;}
@@ -107,11 +134,11 @@ class SpeakerPipeline{
   });
   child.stdin.on('error',()=>{});child.on('error',finish);
   child.on('close',code=>{let message=lastError;try{message=JSON.parse(output).error||message;}catch{}finish(code!==0?Error(message||(timedOut?'处理超时':'本地模型处理失败，请检查依赖和 FFmpeg')):null);});
-  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg:runtime.ffmpeg||'ffmpeg',sources,options:settings,transcribe:false,output_dir:folder}));
+  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg:runtime.ffmpeg||'ffmpeg',sources,options:settings,transcribe:true,output_dir:folder}));
   return this.status();
  }
  kill(){if(!this.child)return;try{if(process.platform==='win32')spawn('taskkill',['/pid',String(this.child.pid),'/T','/F'],{windowsHide:true});else process.kill(-this.child.pid,'SIGKILL');}catch{this.child.kill();}}
  cancel(){if(this.job?.state==='running')this.cancelCurrent?.();return this.status();}
  close(){this.cancel();}
 }
-module.exports={SpeakerPipeline,validateOptions,validateManifest,persist,readRuntime};
+module.exports={SpeakerPipeline,validateOptions,validateManifest,persist,readRuntime,groupSources};

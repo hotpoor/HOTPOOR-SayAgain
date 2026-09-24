@@ -9,3 +9,11 @@ test('multiple selected speakers retain separate identities and reject empty or 
  const row={start_ms:0,end_ms:1000,speakers:['A','B']};assert.deepEqual(validateTurns([row],1000)[0].speakers,['A','B']);
  for(const speakers of [[],['A','A'],['不确定','A'],[''],[42]])assert.throws(()=>validateTurns([{...row,speakers}],1000));
 });
+
+test('automatic ASR accepts machine candidates and legacy clips without changing review status',()=>{
+ const {transcribable}=require('../desktop/confirmed-turns.cjs');
+ const clip={body:{duration_ms:1000,speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:10,end_ms:900,speaker:'A'}]}}};
+ assert.deepEqual(transcribable(clip),clip.body.speaker_analysis.segments);assert.equal(clip.body.speaker_analysis.status,'machine_unreviewed');
+ assert.equal(transcribable({body:{duration_ms:1000}})[0].speaker,'不确定');
+ clip.body.speaker_analysis.segments[0].end_ms=1001;assert.throws(()=>transcribable(clip));
+});
