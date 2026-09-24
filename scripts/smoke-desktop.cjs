@@ -40,7 +40,14 @@ async function launch() {
  const archived=await page.evaluate(()=>window.sayagain.state());assert.deepEqual(archived.config.body.default_voice_ids,[]);assert.equal(archived.samples.length,2);
  await page.locator('#voice-filter').selectOption('archived');await page.locator('[data-action="archive-voice"]').click();await page.locator('#voice-filter').selectOption('active');await page.waitForSelector('.sample');
  await page.locator('[data-page="settings"]').click();await page.locator('[name="target_language"]').fill('ja-JP');await page.locator('#language-form button').click();await page.waitForFunction(()=>document.querySelector('#language-badge').textContent.includes('ja-JP'));
- await page.locator('#toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(output,'settings-desktop.png')});
+ assert.equal(await page.locator('.settings-layout > section').first().getAttribute('id'),'cloud-settings');
+ await app.evaluate(({shell})=>{globalThis.testExternalUrl=null;shell.openExternal=async url=>{globalThis.testExternalUrl=url;};});
+ await page.locator('[data-action="cloud-platform"]').click();assert.equal(await app.evaluate(()=>globalThis.testExternalUrl),'https://platform.qianwenai.com/');
+ await page.locator('#speech-form [name="mode"]').selectOption('cloud');await page.locator('#speech-form [name="api_key"]').fill('test-only-fake-key-not-valid');await page.locator('#speech-form [name="cloud_enabled"]').check();await page.locator('#speech-form button[type="submit"]').click();
+ await page.waitForSelector('[data-action="clear-api-key"]');assert.equal(await page.locator('#speech-form [name="api_key"]').inputValue(),'');
+ const cloudState=await page.evaluate(()=>window.sayagain.state());assert.equal(cloudState.speech.config.body.mode,'cloud');assert.equal(cloudState.speech.has_api_key,true);assert(!JSON.stringify(cloudState).includes('test-only-fake-key-not-valid'));
+ assert(!fs.readFileSync(path.join(temporary,'qianwen-api-key.enc'),'utf8').includes('test-only-fake-key-not-valid'));
+ await page.locator('#toast').waitFor({state:'hidden'});await page.evaluate(()=>{window.scrollTo(0,0);document.querySelector('#main').scrollTop=0;});await page.screenshot({path:path.join(output,'settings-desktop.png')});
  await page.locator('[data-page="review"]').click();assert.equal(await page.locator('.entry').count(),0);await page.locator('#pair-filter').selectOption('all');assert.equal(await page.locator('.entry').count(),2);
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(680,850));await page.waitForFunction(()=>innerWidth===680);
  assert.equal(await page.locator('.practice-column').first().evaluate(el=>getComputedStyle(el).borderLeftWidth),'0px');
@@ -48,7 +55,8 @@ async function launch() {
  await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').getAttribute('aria-label')==='退出全屏');await page.keyboard.press('Escape');await page.waitForFunction(()=>document.querySelector('#fullscreen').getAttribute('aria-label')==='进入全屏');
  assert.equal(await page.evaluate(()=>typeof window.require),'undefined');
  await app.close();app=null;
- page=await launch();const reopened=await page.evaluate(()=>window.sayagain.state());assert.equal(reopened.config.body.target_language,'ja-JP');assert.equal(reopened.expressions.length,2);assert.equal(reopened.voices.length,1);assert.equal(reopened.samples.length,2);
+ page=await launch();const reopened=await page.evaluate(()=>window.sayagain.state());assert.equal(reopened.config.body.target_language,'ja-JP');assert.equal(reopened.expressions.length,2);assert.equal(reopened.voices.length,1);assert.equal(reopened.samples.length,2);assert.equal(reopened.speech.has_api_key,true);assert.equal(reopened.speech.config.body.mode,'cloud');
+ await page.locator('[data-page="settings"]').click();await page.locator('[data-action="clear-api-key"]').click();await page.waitForFunction(()=>!document.querySelector('[data-action="clear-api-key"]'));assert.equal(fs.existsSync(path.join(temporary,'qianwen-api-key.enc')),false);
  await page.locator('[data-page="voices"]').click();await page.locator('[data-action="play"]').first().click();await page.waitForFunction(()=>document.querySelector('.player-play').getAttribute('aria-label')==='暂停参考录音');
  assert.deepEqual(errors,[]);
  console.log('Passed Electron: onboarding, manual expressions, search/favorite, fake-microphone recording, WAV import/default sample, audio playback/seek/speed, archive/restore, settings, responsive layout, fullscreen, context isolation and persistence after relaunch.');

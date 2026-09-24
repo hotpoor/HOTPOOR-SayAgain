@@ -1,6 +1,6 @@
 # Electron 客户端设计
 
-状态：基础 Electron 源码客户端已实现，可通过 npm start 运行；尚未提供打包安装器。模型合成与 Skill 自动接入仍待实现。
+状态：基础 Electron 源码客户端已实现，可通过 npm start 运行；尚未提供打包安装器。已提供 Qwen 云端配置、合成任务流程与 Skill 本地桥接；真实语音合成和宿主自动触发待验证。
 
 ## 参考与延续
 
@@ -24,7 +24,7 @@
 
 ## Electron 与本地服务职责
 
-当前使用原生 HTML/CSS/JavaScript 页面、Electron preload 与主进程内的同步本地存储服务，SQLite 使用 Node 内置驱动。下表中 TTS worker 和 Skill / 客户端适配器尚未实现：
+当前使用原生 HTML/CSS/JavaScript 页面、Electron preload 与主进程内的同步本地存储服务，SQLite 使用 Node 内置驱动。已实现下列模块的初版；本地 worker 受空间限制尚未实际推理：
 
 | 部分 | 职责 |
 | --- | --- |

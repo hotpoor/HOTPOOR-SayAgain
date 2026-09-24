@@ -11,12 +11,18 @@ node_modules/
 /assets/
 *.sqlite*
 *.db*
-SayAgain
-SayAgain1
-SayAgain2
+/SayAgain
+/SayAgain1
+/SayAgain2
 *-journal
 *-wal
 *-shm
 
 /test-results/
 /dist/
+
+.secret
+.secret.*
+
+*.enc
+sayagain-connection.json

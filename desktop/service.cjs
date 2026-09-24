@@ -24,7 +24,7 @@ class Service {
   }
   config() { return this.store.list('learning_config')[0]; }
   state() {
-    return { config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), directory: this.directory };
+    return { config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), directory: this.directory };
   }
   entity(id, type) {
     const entity = this.store.get(id);
@@ -159,4 +159,5 @@ class Service {
   }
   close() { this.store.close(); }
 }
+require('./review.cjs').installReview(Service);
 module.exports = { Service };

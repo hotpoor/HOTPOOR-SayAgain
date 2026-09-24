@@ -941,3 +941,12 @@ dialog::backdrop {
     transition:none!important
   }
 }
+.model-notice { padding: 14px 16px; background: #f7f7f7; border-radius: 8px; margin: 16px 0; font-size: 12px; }
+.model-notice p { margin-top: 6px; color: #666; font-size: 11px; }
+.model-notice.unavailable { border-left: 3px solid #777; }
+.checkbox { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; line-height: 1.8; margin: 16px 0; }
+.checkbox input { margin-top: 5px; accent-color: #333; }
+.form-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.synthesis { padding: 12px 0; }
+.synthesis-text { margin: 8px 0 24px; font-size: 17px; line-height: 1.7; overflow-wrap: anywhere; }
+.practice .button { margin-left: auto; }

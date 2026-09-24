@@ -1,15 +1,18 @@
-const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, safeStorage, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const { Service } = require('./service.cjs');
+const { startBridge } = require('./bridge.cjs');
+const { Speech } = require('./speech.cjs');
+const { createSecrets } = require('./secrets.cjs');
 app.setName('HOTPOOR SayAgain');
 if (process.env.SAYAGAIN_DATA_DIR) {
   if (!path.isAbsolute(process.env.SAYAGAIN_DATA_DIR)) throw new Error('SAYAGAIN_DATA_DIR must be absolute');
   app.setPath('userData', process.env.SAYAGAIN_DATA_DIR);
 }
 protocol.registerSchemesAsPrivileged([{ scheme: 'sayagain-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
-let win, service;
+let win, service, bridge, speech, quitting=false;
 const pagePath = path.join(__dirname, '../renderer/index.html');
 const pageUrl = pathToFileURL(pagePath).href;
 const trusted = event => event.sender === win?.webContents && event.senderFrame === win.webContents.mainFrame && event.senderFrame.url === pageUrl;
@@ -18,12 +21,17 @@ else {
   app.on('second-instance', () => { if (win?.isMinimized()) win.restore(); win?.focus(); });
   app.whenReady().then(async () => {
     service = new Service(path.join(app.getPath('userData'), 'data'));
-    const methods = ['state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
+    const changed=()=>{if(win&&!win.isDestroyed())win.webContents.send('sayagain:data-changed');};
+    bridge=await startBridge(service,app.getPath('userData'),changed);
+    speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData'),safeStorage),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
+    const methods = ['setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       if (method !== 'state' && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('无效的操作参数');
+      if(method==='state')return {...service.state(),speech:speech.status()};
       return service[method](value);
     });
+    for(const [method,handler] of Object.entries({speechSettings:value=>speech.configure(value),clearApiKey:()=>speech.clearKey(),synthesize:value=>speech.request(value),cancelSynthesis:value=>speech.cancel(value),speechStatus:()=>speech.status(),cloudPlatform:()=>shell.openExternal('https://platform.qianwenai.com/')}))ipcMain.handle(`sayagain:${method}`,(event,value)=>{if(!trusted(event))throw new Error('无效的页面来源');return handler(value);});
     ipcMain.handle('sayagain:fullscreen', (event, exit) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       win.setFullScreen(exit === true ? false : !win.isFullScreen());
@@ -78,4 +86,5 @@ async function createWindow() {
   await win.loadFile(pagePath);
 }
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('will-quit', () => service?.close());
+app.on('before-quit',event=>{if(speech&&!quitting){event.preventDefault();quitting=true;speech.close().finally(()=>app.quit());}});
+app.on('will-quit', () => {bridge?.close();service?.close();});

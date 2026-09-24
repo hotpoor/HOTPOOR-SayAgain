@@ -37,7 +37,7 @@ function render() {
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
   $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',settings:'设置'}[page];
-  if (!state.config.body.onboarding_complete) { renderOnboarding(); return; }
+  if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
   if (page === 'voices') renderVoices();
   if (page === 'settings') renderSettings();
@@ -47,15 +47,16 @@ function languageField(name, label, value) {
 }
 function languageOptions() { return `<datalist id="language-options">${languages.map(([value,name]) => `<option value="${value}">${name}</option>`).join('')}</datalist>`; }
 function renderOnboarding() {
-  $('#main').innerHTML = `<div class="page"><section class="onboarding"><span class="eyebrow">WELCOME TO SAYAGAIN</span><h1>先从你熟悉的语言开始。</h1><p>选择母语与想练习的语言。把你说过的话留在这里，用自己的节奏，练习更自然的表达。</p><form id="language-form"><div class="fields-row">${languageField('native_language','我的母语',state.config.body.native_language)}${languageField('target_language','我想练习',state.config.body.target_language)}</div>${languageOptions()}<p class="form-error" role="alert"></p><button class="button primary" type="submit">创建本地工作空间 ${icon('arrow')}</button></form><p class="quiet-note">表达和录音保存在这台电脑。当前支持手动记录和录音管理，自动评估与音色合成正在开发。</p></section></div>`;
+  $('#main').innerHTML = `<div class="page"><section class="onboarding"><span class="eyebrow">WELCOME TO SAYAGAIN</span><h1>先从你熟悉的语言开始。</h1><p>选择母语与想练习的语言。把你说过的话留在这里，用自己的节奏，练习更自然的表达。</p><form id="language-form"><div class="fields-row">${languageField('native_language','我的母语',state.config.body.native_language)}${languageField('target_language','我想练习',state.config.body.target_language)}</div>${languageOptions()}<p class="form-error" role="alert"></p><button class="button primary" type="submit">创建本地工作空间 ${icon('arrow')}</button></form><p class="quiet-note">表达和录音保存在这台电脑。支持手动记录、Skill 评估接入与音色合成。空间不足时，可在设置中填写 Qwen AK 使用云端。</p></section></div>`;
 }
 function heading(kicker,title,description,button='') { return `<div class="page-heading"><div><div class="heading-kicker">${kicker}</div><h1>${title}</h1><p>${description}</p></div>${button}</div>`; }
 function renderReview() {
-  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选"><option value="current">当前语言对</option><option value="all">所有语言</option></select><span class="count-label" id="results-count"></span></div><div id="entries"></div><p class="quiet-note">手动记录保留原句与建议。自动对话评估和 Qwen3-TTS 合成尚未接入。</p></div>`;
+  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选"><option value="current">当前语言对</option><option value="all">所有语言</option></select><span class="count-label" id="results-count"></span></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
   $('#review-filter').value = filter; $('#pair-filter').value = pair;
   renderEntries();
 }
 function renderEntries() {
+  stopPlayer();
   const config = state.config.body;
   const entries = state.expressions.filter(({body:b}) => {
     if (filter === 'archived' ? b.status !== 'archived' : b.status !== 'active') return false;
@@ -67,13 +68,13 @@ function renderEntries() {
   if (!entries.length) {
     $('#entries').innerHTML = `<section class="empty"><div class="empty-symbol">${icon('messages')}</div><h2>${state.expressions.length ? '这里还没有符合条件的表达' : '让下一次表达，更像你。'}</h2><p>${state.expressions.length ? '换一个关键词或筛选条件，找回想练习的那句话。' : '记下一句想说得更好的话，留下建议和原因。你的个人表达库，从这里开始。'}</p><div class="empty-actions"><button class="button primary" data-action="add-expression">记录第一句</button>${!state.expressions.length && config.native_language.startsWith('zh') && config.target_language.startsWith('en') ? '<button class="button" data-action="example">填入一条示例</button>' : ''}</div></section>`; return;
   }
-  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${categories[b.category] || '表达'}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button><span class="tag">手动记录</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}<div class="practice">${icon('wave')}<span>用我的声音听与练</span><span class="practice-status">合成功能开发中</span></div></div></article>`).join('');
+  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${categories[b.category] || '表达'}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button><span class="tag">${b.source==='skill'?'Skill 评估':'手动记录'}</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}${synthesisMarkup(id)}</div></article>`).join('');
 }
 function renderVoices() {
   stopPlayer();
   const archived = filter === 'archived';
   const voices = state.voices.filter(v => (v.body.status === 'archived') === archived);
-  $('#main').innerHTML = `<div class="page">${heading('SOUNDS LIKE YOU','我的音色','留下不同状态下的声音，也留下那一刻的备注。','<button class="button primary" data-action="add-voice">＋ 新建音色</button>')}<div class="toolbar"><select class="filter" id="voice-filter" aria-label="音色筛选"><option value="active">使用中的音色</option><option value="archived">已归档音色</option></select><span class="count-label">${voices.length} 个音色 · 录音仅保存在本地</span></div>${voices.length ? voices.map(voiceMarkup).join('') : `<section class="empty"><div class="empty-symbol">${icon('wave')}</div><h2>${archived ? '还没有归档音色' : '这一次，听见自己的声音。'}</h2><p>${archived ? '归档会保留参考录音与历史信息，随时可以恢复。' : '创建一个音色，录制或导入参考音频。可以保存多个样本，选出最适合自己的声音。'}</p>${!archived ? '<button class="button primary" data-action="add-voice">创建我的音色</button>' : ''}</section>`}<p class="quiet-note">当前可管理和试听参考录音。Qwen3-TTS 尚未接入，保存样本不会立即生成克隆语音。</p></div>`;
+  $('#main').innerHTML = `<div class="page">${heading('SOUNDS LIKE YOU','我的音色','留下不同状态下的声音，也留下那一刻的备注。','<button class="button primary" data-action="add-voice">＋ 新建音色</button>')}<div class="toolbar"><select class="filter" id="voice-filter" aria-label="音色筛选"><option value="active">使用中的音色</option><option value="archived">已归档音色</option></select><span class="count-label">${voices.length} 个音色 · 录音仅保存在本地</span></div>${voices.length ? voices.map(voiceMarkup).join('') : `<section class="empty"><div class="empty-symbol">${icon('wave')}</div><h2>${archived ? '还没有归档音色' : '这一次，听见自己的声音。'}</h2><p>${archived ? '归档会保留参考录音与历史信息，随时可以恢复。' : '创建一个音色，录制或导入参考音频。可以保存多个样本，选出最适合自己的声音。'}</p>${!archived ? '<button class="button primary" data-action="add-voice">创建我的音色</button>' : ''}</section>`}<p class="quiet-note">录音默认保存在本地。表达页可使用这些样本合成语音；云端生成需要你主动启用并确认。</p></div>`;
   $('#voice-filter').value = archived ? 'archived' : 'active';
 }
 function voiceMarkup({block_id:id, body:b, createtime}) {
@@ -87,7 +88,25 @@ function sampleMarkup({block_id:id,body:b,createtime}, voice) {
   return `<section class="sample" data-sample="${id}"><div class="sample-header"><span>${escapeHtml(b.language)} · ${b.recorded_at ? '录制' : '导入'} ${date(b.recorded_at || createtime)}</span>${voice.default_sample_id === id ? '<span class="tag">默认样本</span>' : voice.status === 'active' ? `<button class="button quiet" data-action="default-sample" data-id="${id}" data-voice="${b.voice_id}">设为默认</button>` : ''}</div><div class="player"><button class="player-play" aria-label="播放参考录音" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" value="0" aria-label="录音播放进度" data-seek="${id}"></div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${b.transcript ? `<p class="sample-transcript" dir="auto">${escapeHtml(b.transcript)}</p>` : ''}</section>`;
 }
 function renderSettings() {
-  $('#main').innerHTML = `<div class="page">${heading('MAKE IT YOURS','设置','从语言选择，到这台电脑上的个人空间。')}<div class="settings-layout"><section class="settings-section"><h2>语言偏好</h2><p>修改后用于新记录，历史表达保留原来的语言对。</p><form id="language-form"><div class="fields-row">${languageField('native_language','母语 · 解释语言',state.config.body.native_language)}${languageField('target_language','目标语言',state.config.body.target_language)}</div>${languageOptions()}<p class="form-error" role="alert"></p><button class="button primary" type="submit">保存语言设置</button></form></section><section class="settings-section"><h2>本地数据</h2><p>三个 SQLite 数据库与录音文件保存在此处。备份会复制数据库与参考录音。</p><code class="path">${escapeHtml(state.directory)}</code><button class="button" data-action="backup">导出完整备份</button></section><section class="settings-section"><h2>模型与接入</h2><div class="status-row"><span>Qwen3-TTS 本地合成</span><span>尚未接入</span></div><div class="status-row"><span>Codex / Claude Code 逐轮评估</span><span>尚未接入</span></div><div class="status-row"><span>云端 API</span><span>暂缓 · 本地优先</span></div><p class="quiet-note">当前使用手动记录与本地音色管理。后续接入会复用已保存的数据与录音。</p></section></div></div>`;
+  const speech=state.speech, local=speech.local, gb=n=>(n/1024**3).toFixed(1);
+  $('#main').innerHTML = `<div class="page">${heading('MAKE IT YOURS','设置','语言、模型与这台电脑上的个人空间。')}<div class="settings-layout"><section class="settings-section"><h2>语言偏好</h2><p>修改后用于新记录，历史表达保留原来的语言对。</p><form id="language-form"><div class="fields-row">${languageField('native_language','母语 · 解释语言',state.config.body.native_language)}${languageField('target_language','目标语言',state.config.body.target_language)}</div>${languageOptions()}<p class="form-error" role="alert"></p><button class="button primary" type="submit">保存语言设置</button></form></section>
+  <section class="settings-section"><h2>Skill 接入</h2><p>允许你自己的 Codex、Claude Code 等客户端保存表达评估。仅连接本机；Skill 自动选择不等于每轮必达。</p><div class="status-row"><span>本地接入</span><span>${state.integration?.body.enabled?'已启用':'已关闭'}</span></div><button class="button" data-action="integration">${state.integration?.body.enabled?'关闭接入':'启用 Skill 接入'}</button>${state.integration?.body.last_ack_at?`<p class="quiet-note">最近评估回执：${date(state.integration.body.last_ack_at)} · ${escapeHtml(state.integration.body.last_decision)}</p>`:''}</section>
+  <section class="settings-section" id="local-model"><h2>本地 Qwen3-TTS · 优先推荐</h2><p>录音与合成留在本机。使用 0.6B Base 模型，模型文件约 2.52 GB。</p><div class="model-notice ${local.space_ok?'':'unavailable'}"><strong>${escapeHtml(local.reason)}</strong><p>可用 ${gb(local.available_bytes)} GiB / 需要至少 ${gb(local.required_bytes)} GiB。${local.installed?'包括生成音频所需预留空间。':'首次安装预算包括模型、Python 依赖、下载缓存和剩余空间。'}</p></div>${!local.space_ok?'<button class="button" data-action="cloud-settings">配置千问AI平台云端接入</button>':!local.installed?'<p class="quiet-note">在项目目录运行 <code>npm run tts:install</code> 安装本地模型。安装器会再次检查空间。</p>':'<p class="quiet-note">本地模型已准备好。CPU 为默认后端，生成速度取决于硬件。</p>'}</section>
+  <section class="settings-section" id="cloud-settings"><h2>Qwen 云端 · 音色克隆与语音生成</h2><p>空间不足时，可主动选择千问AI平台云端。云端会发送选定参考录音和文本，按平台计费；不会自动切换。</p><form id="speech-form"><label class="field">生成方式<select name="mode"><option value="local">本地 Qwen3-TTS（优先）</option><option value="cloud">千问AI平台云端</option></select></label><label class="field">Qwen AK / API Key<input name="api_key" type="password" autocomplete="off" placeholder="${speech.has_api_key?'已保存；留空保持原密钥':'粘贴 Qwen 平台的 AK / API Key'}"><small>使用系统加密存储保存，不写入 SQLite 或备份。</small></label><label class="checkbox"><input name="cloud_enabled" type="checkbox" ${speech.config.body.cloud_enabled?'checked':''}>主动启用云端合成</label><p class="quiet-note">使用平台 API Key（AK），此接口不需要填写应用名称。保存设置不会发起付费请求。</p><p class="form-error" role="alert"></p><div class="form-actions"><button class="button primary" type="submit">保存语音设置</button><button class="button" type="button" data-action="cloud-platform">打开 Qwen 平台 ↗</button>${speech.has_api_key?'<button class="button quiet" type="button" data-action="clear-api-key">移除密钥</button>':''}</div></form></section>
+  <section class="settings-section"><h2>本地数据</h2><p>三个 SQLite 数据库与录音文件保存在此处。备份包含数据库与音频，不包含 API Key 或模型权重。</p><code class="path">${escapeHtml(state.directory)}</code><button class="button" data-action="backup">导出完整备份</button></section></div></div>`;
+  const cloudSection=$('#cloud-settings');
+  $('.settings-layout').prepend(cloudSection);
+  if(!local.space_ok){const notice=document.createElement('p');notice.className='model-notice unavailable';notice.textContent='这台电脑空间不足，暂时无法安装本地 Qwen3-TTS。请在这里配置 Qwen 云端。';cloudSection.prepend(notice);}
+  $('#speech-form [name="mode"]').value=!local.space_ok&&!speech.has_api_key?'cloud':speech.config.body.mode;
+}
+function synthesisMarkup(expressionId) {
+  const items=state.syntheses.filter(s=>s.body.expression_id===expressionId);
+  const labels={queued:'等待生成',running:'正在生成',failed:'生成失败',cancelled:'已取消',succeeded:'已生成'};
+  return `<div class="practice">${icon('wave')}<span>用我的声音听与练</span><button class="button quiet" data-action="synthesize" data-id="${expressionId}">生成语音</button></div>${items.map(item=>{const b=item.body,voice=state.voices.find(v=>v.block_id===b.voice_id);return `<div class="synthesis"><div class="sample-header"><span>${escapeHtml(voice?.body.name||'历史音色')} · ${b.provider==='cloud'?'千问云端':'本地'} · ${labels[b.status]||b.status}</span>${['queued','running'].includes(b.status)?`<button class="button quiet" data-action="cancel-synthesis" data-id="${item.block_id}">取消</button>`:''}</div>${b.status==='succeeded'?playbackMarkup(item.block_id,b):b.error?`<p class="form-error">${escapeHtml(b.error)}</p>`:''}</div>`;}).join('')}`;
+}
+function playbackMarkup(id,b) {
+ const bars=(b.waveform||[]).map((v,i)=>`<line x1="${i*5+2}" y1="${22-v*19}" x2="${i*5+2}" y2="${22+v*19}" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>`).join('');
+ return `<div data-sample="${id}"><div class="player"><button class="player-play" aria-label="播放音频" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" value="0" aria-label="音频播放进度" data-seek="${id}"></div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div></div>`;
 }
 function field(name,label,value='',extra='') { return `<label class="field">${label}<textarea name="${name}" ${extra}>${escapeHtml(value)}</textarea></label>`; }
 function openDialog(mode, id, example=false) {
@@ -101,6 +120,14 @@ function openDialog(mode, id, example=false) {
     const voice = state.voices.find(v => v.block_id === id)?.body;
     $('#dialog-title').textContent = voice ? '编辑音色' : '新建音色';
     $('#editor-fields').innerHTML = `<label class="field">音色名称<input name="name" required maxlength="120" placeholder="例如：我的日常声音" value="${escapeHtml(voice?.name || '')}"></label>${field('note','备注',voice?.note || '', 'maxlength="2000"')}<p class="form-hint">先给声音起个名字，再添加录音。可以录制多次并保留各自的创建日期。</p>`;
+  } else if (mode === 'synthesis') {
+    if((state.speech.config.body.mode==='local'&&(!state.speech.local.space_ok||!state.speech.local.installed))&&!state.speech.has_api_key){page='settings';render();$('#speech-form [name="api_key"]').focus();notify('先配置 Qwen AK 并启用云端，再生成语音');return;}
+    const expression=state.expressions.find(e=>e.block_id===id), cloud=state.speech.config.body.mode==='cloud';
+    const voices=state.voices.filter(v=>v.body.status==='active'&&v.body.default_sample_id);
+    $('#dialog-title').textContent=cloud?'使用千问AI平台生成':'使用本地 Qwen3-TTS 生成';
+    $('#editor-fields').innerHTML=`<p class="synthesis-text" dir="auto">${escapeHtml(expression.body.improved)}</p><label class="field">我的音色<select name="voice_id" required>${voices.map(v=>`<option value="${v.block_id}">${escapeHtml(v.body.name)}</option>`).join('')}</select></label><p class="form-hint">将使用所选音色的默认样本。${cloud?'需要 10–60 秒参考录音，建议 10–20 秒；按平台计费。':'录音与文字均在本机处理。'}</p>${cloud?'<label class="checkbox"><input type="checkbox" name="cloud_consent" required>同意将所选音色的默认参考录音和上方文字发送到千问AI平台进行克隆与合成。</label>':''}${!voices.length?'<p class="form-error">请先在「我的音色」中创建音色并添加录音。</p>':''}`;
+    const defaultVoice=state.config.body.default_voice_ids[0];if(voices.some(v=>v.block_id===defaultVoice))$('#editor [name="voice_id"]').value=defaultVoice;
+    $('#save-editor').textContent='开始生成';$('#save-editor').disabled=!voices.length;
   } else if (mode === 'sample') {
     $('#dialog-title').textContent = '添加参考录音';
     $('#editor-fields').innerHTML = `<p class="form-hint">录制自己的声音，或导入已有录音。每段不超过 10 分钟、25 MB。导入文件不会被移动或修改。</p><div class="record-controls"><button type="button" class="button" data-action="record" id="record-button">开始录音</button><span class="record-status" id="record-status">麦克风尚未开启</span></div><label class="field">或导入音频<input id="audio-file" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,.wav,.mp3,.m4a,.ogg,.webm"></label><audio class="audio-preview" id="audio-preview" controls hidden></audio>${languageField('language','录音所用语言',state.config.body.native_language)}${languageOptions()}${field('transcript','录音原文（可选）','', 'maxlength="10000"')}<p class="form-hint" id="audio-info">尚未选择音频</p>`;
@@ -142,12 +169,21 @@ async function prepareAudio(file, source) {
   if (mime === 'audio/x-wav') mime = 'audio/wav';
   if (mime === 'audio/x-m4a') mime = 'audio/mp4';
   if (!mime) mime = {wav:'audio/wav',mp3:'audio/mpeg',m4a:'audio/mp4',ogg:'audio/ogg',webm:'audio/webm'}[file.name?.split('.').at(-1).toLowerCase()] || '';
-  pendingAudio = { bytes:new Uint8Array(bytes), media_type:mime, duration_ms:decoded.duration*1000, waveform:waveform.map(v=>v/max), source };
+  const wav = encodeWav(decoded);
+  pendingAudio = { bytes:wav, media_type:'audio/wav', duration_ms:decoded.duration*1000, waveform:waveform.map(v=>v/max), source };
   if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(file);
+  previewUrl = URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
   $('#audio-preview').src = previewUrl; $('#audio-preview').hidden = false;
   $('#audio-info').textContent = `${duration(pendingAudio.duration_ms)} · ${(bytes.byteLength/1024/1024).toFixed(2)} MB · 已准备好保存`;
   $('#save-editor').disabled = false;
+}
+function encodeWav(decoded) {
+  const bytes=new Uint8Array(44+decoded.length*2),view=new DataView(bytes.buffer);
+  const write=(offset,value)=>{for(let i=0;i<value.length;i++)bytes[offset+i]=value.charCodeAt(i);};
+  write(0,'RIFF');view.setUint32(4,bytes.length-8,true);write(8,'WAVEfmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,decoded.sampleRate,true);view.setUint32(28,decoded.sampleRate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,decoded.length*2,true);
+  const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i));
+  for(let i=0;i<decoded.length;i++){const sample=Math.max(-1,Math.min(1,channels.reduce((sum,c)=>sum+c[i],0)/channels.length));view.setInt16(44+i*2,Math.round(sample*(sample<0?32768:32767)),true);}
+  return bytes;
 }
 async function toggleRecording() {
   if (recording?.state === 'recording') { recording.stop(); return; }
@@ -171,7 +207,7 @@ async function toggleRecording() {
   } finally { if ($('#record-button')) $('#record-button').disabled = false; }
 }
 async function playSample(id) {
-  const sample = state.samples.find(s=>s.block_id === id);
+  const sample = [...state.samples,...state.syntheses].find(s=>s.block_id === id);
   if (playerSampleId !== id) {
     stopPlayer();
     document.querySelectorAll('.player-play').forEach(button=>{button.innerHTML=icon('play');button.setAttribute('aria-label','播放参考录音');});
@@ -195,7 +231,7 @@ async function playSample(id) {
 document.addEventListener('click', async event => {
   const button = event.target.closest('button'); if (!button) return;
   try {
-    if (button.dataset.page) { page=button.dataset.page;filter='active';render();return; }
+    if (button.dataset.page) { page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
     const id = button.dataset.id;
     switch(button.dataset.action) {
       case 'sidebar': {
@@ -203,6 +239,12 @@ document.addEventListener('click', async event => {
         const closed = innerWidth<=760 ? !document.body.classList.contains('mobile-open') : document.body.classList.contains('collapsed');
         button.setAttribute('aria-label',closed?'展开侧栏':'收起侧栏'); button.title=button.getAttribute('aria-label'); break;
       }
+      case 'integration': await api.setIntegration({enabled:!state.integration?.body.enabled});await refresh();break;
+      case 'cloud-settings': page='settings';render();$('#cloud-settings').scrollIntoView({behavior:'smooth'});$('#speech-form [name="api_key"]').focus();break;
+      case 'cloud-platform': await api.cloudPlatform();break;
+      case 'clear-api-key': await api.clearApiKey();await refresh();notify('密钥已移除，云端已关闭');break;
+      case 'synthesize': openDialog('synthesis',id);break;
+      case 'cancel-synthesis': await api.cancelSynthesis({id});await refresh();break;
       case 'fullscreen': await api.fullscreen(); break;
       case 'add-expression': openDialog('expression'); break;
       case 'example': openDialog('expression',null,true); break;
@@ -244,7 +286,9 @@ document.addEventListener('submit',async event=>{
   try {
     const values=Object.fromEntries(new FormData(form));
     if(form.id==='language-form') { await api.saveSettings({...values,revision:state.config.body.revision}); await refresh();notify('语言设置已保存'); }
+    if(form.id==='speech-form'){await api.speechSettings({...values,cloud_enabled:values.cloud_enabled==='on'});form.reset();await refresh();notify('语音设置已保存');}
     if(form.id==='editor-form') {
+      if(dialogMode==='synthesis')await api.synthesize({expression_id:editing,voice_id:values.voice_id,cloud_consent:values.cloud_consent==='on'});
       if(dialogMode==='expression') await api.addExpression(values);
       if(dialogMode==='voice') await api.saveVoice({...values,id:editing,revision:state.voices.find(v=>v.block_id===editing)?.body.revision});
       if(dialogMode==='sample') { if(!pendingAudio) throw new Error('请先录制或导入音频');await api.addSample({...values,...pendingAudio,voice_id:editing}); }
@@ -255,5 +299,6 @@ document.addEventListener('submit',async event=>{
 editor.addEventListener('close',cleanupRecording);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!editor.open)api.fullscreen(true).catch(()=>{});});
 api.onFullscreen(full=>{const button=$('#fullscreen');button.setAttribute('aria-label',full?'退出全屏':'进入全屏');button.title=button.getAttribute('aria-label');});
+api.onChange(async()=>{try{state=await api.state();if(!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
 fillIcons();
 refresh().catch(error=>{$('#main').innerHTML=`<div class="page"><h1>无法打开本地数据</h1><p class="form-error">${escapeHtml(errorMessage(error))}</p></div>`;});
