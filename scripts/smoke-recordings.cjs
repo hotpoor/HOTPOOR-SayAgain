@@ -20,6 +20,15 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
   await page.locator('[data-transcribe]').last().click();
   await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('转写已保存'),{},{timeout:180000});
   const state=await page.evaluate(()=>window.sayagain.state());assert(state.recording_clips.some(c=>c.body.transcript_status==='machine_unreviewed'&&c.body.transcript.length>0));
+  await page.locator('#recording-speakers').click();
+  await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('分析结果已保存'),{},{timeout:180000});
+  await page.locator('#recording-keywords').fill('你好,学习');await page.locator('#recording-detect').click();
+  await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('分析结果已保存'),{},{timeout:180000});
+  await page.reload();await page.locator('[data-page="recordings"]').click();
+  const analyzed=await page.evaluate(()=>window.sayagain.state());
+  assert(analyzed.recording_clips.some(c=>c.body.speaker_analysis?.segments.some(s=>s.speaker)));
+  assert(analyzed.recording_clips.some(c=>c.body.keyword_analysis?.segments.some(s=>s.keyword==='学习')));
+  console.log('PASS: speaker grouping and custom keyword inference saved and restored in client.');
   const models=await page.evaluate(()=>window.sayagain.recordingModels());assert(models.every(m=>m.status==='本机推理验证通过'));console.log('PASS: client read back all four verified registrations; real speech import/transcription saved via IPC.');
  }
  }finally{await app?.close();const resolved=path.resolve(directory);if(resolved.startsWith(path.resolve(os.tmpdir())+path.sep))fs.rmSync(resolved,{recursive:true,force:true});}
