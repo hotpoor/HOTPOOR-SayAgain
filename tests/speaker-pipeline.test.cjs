@@ -57,3 +57,25 @@ test('microphone checkpoints join only within a contiguous take',()=>{
  assert.equal(result.length,3);assert.deepEqual(result[0].audio_parts,['a.wav','b.wav']);assert.equal(result[0].duration_ms,60000);assert.equal(result[0].members.length,2);assert.equal(first.duration_ms,30000);
  assert.equal(groupSources([first,{...second,offset_ms:31000}]).length,2);
 });
+
+test('multiple imports append distinct sources to one document without changing existing speakers or text',t=>{
+ const {root,s,manifest,sources}=fixture(t);sources[0].audio=path.join(root,'00001.wav');
+ let session=s.createRecording({title:'My document'});const id=session.block_id;
+ session=persist(s,root,manifest,sources,'ignored',session);
+ let old=s.state().recording_clips[0];s.updateRecordingTranscript({id:old.block_id,revision:old.body.revision,text:'Manual text'});
+ session=s.entity(id,'recording');session=s.update(session,{speaker_profiles:[{key:'A',name:'Host',note:'Keep me'}]});
+ session=persist(s,root,manifest,sources,'ignored again',session);
+ const state=s.state();assert.equal(state.recordings.length,1);assert.equal(session.block_id,id);assert.equal(session.body.title,'My document');assert.equal(session.body.clip_count,2);
+ assert.equal(state.recording_sources.length,2);assert.equal(new Set(state.recording_clips.map(c=>c.body.recording_source_id)).size,2);assert.equal(new Set(state.recording_clips.map(c=>c.body.sequence)).size,2);
+ assert.equal(s.entity(old.block_id,'recording_clip').body.transcript,'Manual text');assert.equal(session.body.speaker_profiles[0].name,'Host');assert.deepEqual(state.recording_clips.map(c=>c.body.speaker).sort(),['A','B']);
+});
+test('raw capture checkpoints are replaced atomically inside the same document, with notes retained',t=>{
+ const {root,s,manifest}=fixture(t);let session=s.createRecording({title:'Meeting'});
+ let raw=s.addRecordingClip({recording_id:session.block_id,client_id:'take',source:'microphone',captured_at:Date.now(),bytes:wav()});
+ raw=s.updateRecordingTranscript({id:raw.block_id,revision:raw.body.revision,text:'Capture note'});
+ const sources=[{id:raw.block_id,revision:raw.body.revision,asset_id:raw.body.asset_id,source:'microphone',audio:s.asset(raw.body.asset_id).filename,name:'Recording',offset_ms:0,duration_ms:1000}];
+ session=persist(s,root,manifest,require('../desktop/speaker-pipeline.cjs').groupSources(sources),'ignored',s.entity(session.block_id,'recording'));
+ assert.equal(s.state().recordings.length,1);assert.equal(s.state().recording_clips.length,1);assert.equal(s.entity(raw.block_id,'recording_clip').body.status,'archived');assert.equal(s.state().recording_sources[0].body.retained_notes[0].text,'Capture note');
+ assert(fs.existsSync(s.asset(raw.body.asset_id).filename));assert.equal(session.body.clip_count,1);
+ const next=s.addRecordingClip({recording_id:session.block_id,client_id:'next',source:'microphone',captured_at:Date.now(),bytes:wav()});assert(next.body.sequence>s.state().recording_clips.find(c=>c.body.pipeline_version).body.sequence);
+});

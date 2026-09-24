@@ -21,6 +21,15 @@ const root=path.resolve(__dirname,'..'),directory=fs.mkdtempSync(path.join(os.tm
  state=await page.evaluate(()=>window.sayagain.state());assert(state.recording_clips.some(c=>c.body.recording_id===result.block_id&&c.body.transcript.length>0));
  await page.locator('#clip-speaker').selectOption('A');assert((await page.locator('.recording-clip').count())>0);await page.locator('#clip-speaker').selectOption('');
  const audio=page.locator('.recording-clip audio').first();await audio.evaluate(a=>a.play());await page.waitForFunction(()=>document.querySelector('.recording-clip audio').currentTime>0);await audio.evaluate(a=>a.pause());
+ // Adding inside a document must append a separate source and keep its identity and corrected text.
+ const firstClip=state.recording_clips.find(c=>c.body.recording_id===result.block_id);
+ await page.evaluate(async id=>{const state=await window.sayagain.state(),clip=state.recording_clips.find(c=>c.block_id===id);await window.sayagain.updateRecordingTranscript({id,revision:clip.body.revision,text:'Preserved manual correction'});},firstClip.block_id);
+ await page.locator('#recording-import').click();
+ await page.waitForFunction(async id=>{const job=await window.sayagain.speakerPipeline({action:'status'});if(job.state==='failed')throw Error(job.error);const s=await window.sayagain.state();return job.state==='completed'&&s.recording_sources.filter(r=>r.body.recording_id===id).length===2;},result.block_id,{timeout:300000});
+ await page.waitForFunction(()=>document.querySelectorAll('.conversation-source').length===2);
+ state=await page.evaluate(()=>window.sayagain.state());assert.equal(state.recordings.length,1);assert.equal(state.recordings[0].block_id,result.block_id);assert.equal(state.recordings[0].body.title,result.body.title);
+ assert.equal(state.recording_clips.find(c=>c.block_id===firstClip.block_id).body.transcript,'Preserved manual correction');
+ const added=state.recording_clips.filter(c=>!clips.some(old=>old.block_id===c.block_id));assert(added.length>0);assert(added.filter(c=>c.body.speaker).every(c=>!clips.some(old=>old.body.speaker===c.body.speaker)));
  console.log('Playback passed');await page.reload();await page.locator('[data-page="recordings"]').click();state=await page.evaluate(()=>window.sayagain.state());assert(state.recordings.some(r=>r.block_id===result.block_id));
  // Cancel a second run and ensure there is no second result or partial assets.
  const before=state.recordings.length;await page.locator('#pipeline-import').click();await page.waitForFunction(()=>!document.querySelector('#pipeline-cancel').hidden);await page.locator('#pipeline-cancel').click();

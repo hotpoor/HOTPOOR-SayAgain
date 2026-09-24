@@ -48,7 +48,7 @@ else {
         if(speakerPipeline.status().state==='running')throw Error('已有任务正在运行');
         const result=await dialog.showOpenDialog(win,{title:'导入音频并分人拆条',properties:['openFile'],filters:[{name:'音频',extensions:['mp3','wav','m4a','flac','ogg','aac','opus']} ]});
         if(result.canceled)return null;
-        return speakerPipeline.start({filename:result.filePaths[0],options:input.options});
+        return speakerPipeline.start({filename:result.filePaths[0],id:input.id,options:input.options});
       }
       throw Error('无效分段操作');
     });

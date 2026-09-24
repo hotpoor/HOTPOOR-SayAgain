@@ -19,8 +19,8 @@ const root=path.resolve(__dirname,'..'),directory=fs.mkdtempSync(path.join(os.tm
  await page.locator('#recording-start').click();await page.locator('#recording-stop').click();
  await page.waitForFunction(async()=>{const job=await window.sayagain.speakerPipeline({action:'status'});if(job.state==='failed')throw Error(job.error);return job.state==='completed';},{},{timeout:300000});
  await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('已生成'));
- const state=await page.evaluate(()=>window.sayagain.state()),result=state.recordings.find(s=>s.body.pipeline),clips=state.recording_clips.filter(c=>c.body.recording_id===result.block_id),original=state.recording_clips.filter(c=>c.body.recording_id===id);
- assert.equal(original.length,2);assert(clips.some(c=>c.body.transcript));assert(clips.every(c=>c.body.transcription_language==='en'&&c.body.speaker_analysis.status==='machine_unreviewed'));
+ const state=await page.evaluate(()=>window.sayagain.state()),result=state.recordings.find(s=>s.body.pipeline),clips=state.recording_clips.filter(c=>c.body.recording_id===result.block_id);
+ assert.equal(result.block_id,id);assert.equal(state.recordings.length,1);assert.equal(result.body.title,'Microphone pipeline');assert(clips.some(c=>c.body.transcript));assert(clips.every(c=>c.body.transcription_language==='en'&&c.body.speaker_analysis.status==='machine_unreviewed'));
  const source=state.recording_sources.find(s=>s.body.recording_id===result.block_id);assert.equal(source.body.input_assets.length,2);assert.equal(source.body.duration_ms,60000);assert(source.body.original_asset_id);assert(clips.every(c=>c.body.source_clip_ids.length===2));
  assert(await page.locator(`audio[src="sayagain-asset://audio/${source.body.original_asset_id}"]`).count()>0);
  assert.deepEqual(errors,[]);console.log(`PASS: stop recording automatically joins two checkpoints, preserves originals and creates ${clips.length} transcribed speaker clips.`);

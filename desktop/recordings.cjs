@@ -51,7 +51,7 @@ module.exports=Service=>{
   try{return this.store.transaction(()=>{
    const session=this.entity(input.recording_id,'recording');
    this.store.put({type:'asset',profile_id:this.profileId,relative_path:relative,sha256:sha,media_type:'audio/wav',byte_size:bytes.length,duration_ms:format.duration_ms},{id:assetId});
-   const clip=this.store.put({type:'recording_clip',profile_id:this.profileId,recording_id:session.block_id,client_id:input.client_id,asset_id:assetId,sha256:sha,sequence:session.body.clip_count,source:input.source,source_name:sourceName,source_offset_ms:offset,captured_at:captured,imported_at:Date.now(),...format,transcript:'',transcript_status:'not_started',links:[{relation:'recording',target_id:session.block_id},{relation:'asset',target_id:assetId}]});
+   const clip=this.store.put({type:'recording_clip',profile_id:this.profileId,recording_id:session.block_id,client_id:input.client_id,asset_id:assetId,sha256:sha,sequence:this.store.list('recording_clip').filter(c=>c.body.recording_id===session.block_id).reduce((n,c)=>Math.max(n,c.body.sequence+1),0),source:input.source,source_name:sourceName,source_offset_ms:offset,captured_at:captured,imported_at:Date.now(),...format,transcript:'',transcript_status:'not_started',links:[{relation:'recording',target_id:session.block_id},{relation:'asset',target_id:assetId}]});
    this.update(session,{clip_count:session.body.clip_count+1,duration_ms:session.body.duration_ms+format.duration_ms});return clip;
   });}catch(error){fs.unlinkSync(filename);throw error;}
  };
