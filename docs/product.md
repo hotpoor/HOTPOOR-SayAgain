@@ -49,7 +49,7 @@ Skill 说明如何评估和保存；可靠触发需要适配器收到客户端�
 
 ## 页面与配置
 
-桌面采用 Electron，页面功能参考 Nexplay 线上版，UI 尽量参考 Codex 和 ChatGPT 客户端。具体布局和职责划分见 [客户端设计](desktop.md)；当前尚未实现桌面应用。
+桌面采用 Electron，页面功能参考 Nexplay 线上版，UI 尽量参考 Codex 和 ChatGPT 客户端。具体布局和职责划分见 [客户端设计](desktop.md)；基础桌面应用已实现，自动评估与 TTS 仍处于设计阶段；以 README 的进度表为准。
 
 | 页面 | 需要显示/配置 |
 | --- | --- |

@@ -17,3 +17,6 @@ SayAgain2
 *-journal
 *-wal
 *-shm
+
+/test-results/
+/dist/
