@@ -88,7 +88,7 @@ async function launch() {
  await page.evaluate(async()=>{const s=await window.sayagain.state(),v=s.voices[0],other=s.samples.find(x=>x.block_id!==v.body.default_sample_id);await window.sayagain.defaultSample({id:other.block_id,voice_id:v.block_id});});
  await page.locator('[data-action="synthesize"]').first().click();await page.waitForSelector('#editor[open]');assert.equal(await page.locator('#editor [name="cloud_consent"]').isChecked(),false);await page.keyboard.press('Escape');
  await page.locator('#speech-defaults').click();await page.locator('#editor [name="cloud_consent"]').check();await page.locator('#editor [name="reuse_defaults"]').uncheck();await page.locator('#save-editor').click();await page.waitForFunction(()=>!document.querySelector('#editor').open);assert.equal(await page.evaluate(()=>localStorage.getItem('sayagain-speech-defaults')),null);
- await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(680,850));await page.waitForFunction(()=>innerWidth===680);
+ await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(680,850));await page.waitForFunction(()=>innerWidth===680);
  assert.equal(await page.locator('.practice-column').first().evaluate(el=>getComputedStyle(el).borderLeftWidth),'0px');
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'review-narrow.png')});
  await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').getAttribute('aria-label')==='退出全屏');await page.keyboard.press('Escape');await page.waitForFunction(()=>document.querySelector('#fullscreen').getAttribute('aria-label')==='进入全屏');

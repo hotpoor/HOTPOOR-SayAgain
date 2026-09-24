@@ -8,6 +8,7 @@ const paths = {
   eyeOff:'m3 3 18 18M10 5c6-1 12 7 12 7s-1 2-3 4M6 6c-3 2-4 6-4 6s4 7 10 7c2 0 4-1 5-2M10 10a3 3 0 0 0 4 4',
   upload:'M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6',
   info:'M12 8h.01M12 11v6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+  cassette:'M5 4h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z M8 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z M16 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z M8 8h8M8 12h8M6 20l2-5h8l2 5',
   messages:'M4 4h16v12H9l-5 4V4Z', wave:'M3 10v4m4-8v12m5-16v20m5-16v12m4-8v4',
   settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3Zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
   sidebar:'M3 4h18v16H3V4Zm5 0v16', expand:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',
@@ -62,10 +63,11 @@ function render() {
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',settings:'设置'}[page];
+  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的录音',settings:'设置'}[page];
   if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
   if (page === 'voices') renderVoices();
+  if (page === 'recordings') window.recordingPage.render($('#main'),state);
   if (page === 'settings') renderSettings();
 }
 function languageField(name, label, value) {
@@ -344,7 +346,7 @@ async function playSample(id) {
 document.addEventListener('click', async event => {
   const button = event.target.closest('button'); if (!button) return;
   try {
-    if (button.dataset.page) { page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
+    if (button.dataset.page) { state=await api.state();page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
     const id = button.dataset.id;
     switch(button.dataset.action) {
       case 'sidebar': {

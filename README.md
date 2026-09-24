@@ -72,6 +72,8 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 基础窗口、表达回顾、音色库、设置与本地存储已实现。参考录音支持默认展开波形、拖动进度与 0.75× 慢放；表达的克隆语音支持任务状态、取消、缓存和生成后的波形播放。具体边界见[客户端设计](docs/desktop.md)。
 
+“我的录音”支持麦克风连续录音、多文件导入及按会话保存。一个会话 `block_id` 可包含多个约 30 秒的音频片段，每段可播放、编辑文字，或使用本机 FSMN VAD + SenseVoice INT8 转写。模型由 Skill 下载登记；CAMPPlus 支持会话内候选说话人分组（实验功能），Zipformer 支持手动填写中英文关键词并分析已保存录音。分组不代表身份确认，重叠发言和短语音可能不准确；关键词目前显示命中次数，不提供精确命中时间。详见[录音模型配置](skills/sayagain/references/recordings.md)。运行 `node scripts/smoke-recordings.cjs` 可验证基本录音流程；传入 `SAYAGAIN_TEST_RUNTIME` 和 `SAYAGAIN_TEST_AUDIO` 还可验证已登记模型的实际客户端转写。模型权重、个人音频和本机路径不提交到仓库。
+
 ![表达回顾界面，使用经授权的真实英语和日语片段重建](docs/screenshots/review-desktop.png)
 
 <details>

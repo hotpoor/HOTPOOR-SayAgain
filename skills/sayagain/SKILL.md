@@ -33,3 +33,7 @@ The application provides status, configuration and synthesis; model weights are 
 5. With an authorized reference recording and test sentence, verify actual synthesis through the local worker/app service and cache reuse. Report the model and device used. Registration, successful generation and listening quality are distinct outcomes; do not claim untested combinations work. Keep reference recordings local unless the user explicitly requests cloud synthesis.
 
 Cloud mode remains optional and separately configured with the user's chosen provider and credentials. Never silently upload audio or text. The bundled scripts configure local runtime files consumed by the installed desktop app. Voice management and synthesis are currently performed in the app; the Skill bridge exposes context and review submission only.
+
+## Local recording and transcription setup
+
+For microphone recordings, file imports, FSMN VAD, SenseVoice INT8, CAMPPlus or Zipformer setup, follow [recording setup](references/recordings.md). Download through the Skill into an isolated runtime; show the resulting model registration in the client. Keep downloaded, inference-verified and integrated-feature states distinct. Reuse existing Qwen3-TTS for speech output.
