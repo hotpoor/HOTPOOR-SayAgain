@@ -25,7 +25,9 @@ class Service {
   }
   config() { return this.store.list('learning_config')[0]; }
   state() {
-    return { recordings:this.store.list('recording'),recording_sources:this.store.list('recording_source'),recording_clips:this.store.list('recording_clip').filter(c=>c.body.status!=='archived'),config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), directory: this.directory };
+    const people=this.store.list('recording_person').filter(p=>p.body.profile_id===this.profileId),byId=new Map(people.map(p=>[p.block_id,p]));
+    const recordings=this.store.list('recording').map(s=>({...s,body:{...s.body,speaker_profiles:(s.body.speaker_profiles||[]).map(p=>{const person=byId.get(p.person_id);return person?{...p,name:person.body.name,note:person.body.note,avatar:p.avatar_override||person.body.avatar,person_avatar:person.body.avatar,person_revision:person.body.revision}:p;})}}));
+    return { recording_people:people,recordings,recording_sources:this.store.list('recording_source'),recording_clips:this.store.list('recording_clip').filter(c=>c.body.status!=='archived'),config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), directory: this.directory };
   }
   entity(id, type) {
     const entity = this.store.get(id);
@@ -165,3 +167,5 @@ module.exports = { Service };
 require('./recordings.cjs')(Service);
 
 require('./confirmed-turns.cjs').install(Service);
+
+require('./recording-people.cjs')(Service);
