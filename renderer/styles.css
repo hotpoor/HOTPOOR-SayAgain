@@ -1033,3 +1033,26 @@ dialog { overflow:hidden; }
 .mode-choices { display:flex; flex-wrap:wrap; gap:8px; }
 .voice-choices { max-height:140px; overflow:auto; overscroll-behavior:contain; }
 .model-list { scrollbar-gutter:stable; }
+
+.model-scroll-frame { position:relative; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.model-scroll-frame::before,.model-scroll-frame::after { content:''; position:absolute; left:0; right:14px; height:24px; z-index:1; pointer-events:none; opacity:0; transition:opacity .15s; }
+.model-scroll-frame::before { top:0; background:linear-gradient(#fff,transparent); }
+.model-scroll-frame::after { bottom:0; background:linear-gradient(transparent,#fff); }
+.model-scroll-frame.more-above::before,.model-scroll-frame.more-below::after { opacity:1; }
+.model-scroll-frame .model-list { padding-top:10px; padding-bottom:16px; }
+.model-scroll-tools { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:8px 0 14px; color:var(--muted); font-size:11px; }
+.model-scroll-tools > div { display:flex; gap:6px; }
+.model-scroll-button { width:28px; height:28px; border-radius:6px; background:#f0f0f0; font-size:17px; color:#444; }
+.model-scroll-button:hover:enabled { background:#e4e4e4; }
+.model-scroll-button:disabled { opacity:.3; }
+
+.model-scroll-frame { padding-right:18px; }
+.model-scroll-frame .model-list { scrollbar-width:none; scrollbar-gutter:auto; padding-right:0; }
+.model-scroll-frame .model-list::-webkit-scrollbar { display:none; }
+.model-scroll-rail { position:absolute; top:8px; bottom:8px; right:0; width:14px; cursor:pointer; touch-action:none; }
+.model-scroll-rail::before { content:''; position:absolute; top:0; bottom:0; left:6px; width:1px; background:#ddd; }
+.model-scroll-thumb { position:absolute; top:0; left:4px; width:5px; border-radius:3px; background:#aaa; will-change:transform; }
+.model-scroll-rail:hover .model-scroll-thumb,.model-scroll-rail.dragging .model-scroll-thumb { background:#666; }
+.model-scroll-rail:focus-visible { outline:2px solid #777; outline-offset:1px; border-radius:3px; }
+.model-scroll-rail.no-overflow { opacity:.3; cursor:default; }
+.model-scroll-rail.pointer-focus:focus-visible { outline:none; }

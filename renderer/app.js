@@ -108,12 +108,43 @@ function renderSettings() {
   if(!local.space_ok){const notice=document.createElement('div');notice.className='model-notice unavailable';notice.textContent='这台电脑空间不足，暂时无法安装本地 Qwen3-TTS。请在这里配置 Qwen 云端。';cloudSection.prepend(notice);}
   document.querySelectorAll('.model-notice').forEach(notice=>{notice.innerHTML=`<span class="notice-icon">${icon('info')}</span><div class="notice-content">${notice.innerHTML}</div>`;});
   $('#speech-form [name="mode"][value="'+(!local.space_ok&&!speech.has_api_key?'cloud':speech.config.body.mode)+'"]').checked=true;
+  initModelScroll();
 }
 function modelPicker(name,selected) {
  const groups=[['Qwen-Audio',['qwen-audio']],['Qwen3-TTS',['qwen-tts','qwen-realtime']],['CosyVoice',['cosyvoice']],['MiniMax',['minimax']]];
- return `<fieldset class="model-picker"><legend>${name==='cloud_model'?'默认云端模型':'本次生成模型'} <span class="muted">13 款</span></legend><div class="model-list">${groups.map(([label,families])=>`<div class="model-group-title">${label}</div>${state.speech.cloud_models.filter(m=>families.includes(m.family)).map(m=>`<label class="model-choice"><input type="radio" name="${name}" value="${escapeHtml(m.id)}" ${m.id===selected?'checked':''} required><span class="choice-mark" aria-hidden="true"></span><span class="model-copy"><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.id)}</small>${m.family==='qwen-realtime'?'<small>实时接口 · 生成后保存完整音频</small>':''}</span></label>`).join('')}`).join('')}</div><p class="form-hint">${name==='cloud_model'?'勾选一个默认模型，点击下方「保存语音设置」。':'此次选择不改变默认模型，可勾选下方选项设为默认。'}</p><p class="model-fee">${icon('info')} MiniMax 新音色首次合成有解锁费用（目录价 ¥9.9），另计试听及合成用量，以平台账单为准。</p></fieldset>`;
+ return `<fieldset class="model-picker"><legend>${name==='cloud_model'?'默认云端模型':'本次生成模型'} <span class="muted">13 款</span></legend><div class="model-scroll-frame"><div id="${name}-list" class="model-list" tabindex="0" aria-label="可滚动的模型列表">${groups.map(([label,families])=>`<div class="model-group-title">${label}</div>${state.speech.cloud_models.filter(m=>families.includes(m.family)).map(m=>`<label class="model-choice"><input type="radio" name="${name}" value="${escapeHtml(m.id)}" ${m.id===selected?'checked':''} required><span class="choice-mark" aria-hidden="true"></span><span class="model-copy"><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.id)}</small>${m.family==='qwen-realtime'?'<small>实时接口 · 生成后保存完整音频</small>':''}</span></label>`).join('')}`).join('')}</div><div class="model-scroll-rail" role="scrollbar" tabindex="0" aria-label="模型列表滚动条" aria-controls="${name}-list" aria-orientation="vertical" aria-valuemin="0"><span class="model-scroll-thumb"></span></div></div><div class="model-scroll-tools"><span class="model-scroll-status">在此滚动查看全部模型</span><div><button type="button" class="model-scroll-button" data-model-scroll="-1" aria-label="向上查看更多模型">↑</button><button type="button" class="model-scroll-button" data-model-scroll="1" aria-label="向下查看更多模型">↓</button></div></div><p class="form-hint">${name==='cloud_model'?'勾选一个默认模型，点击下方「保存语音设置」。':'此次选择不改变默认模型，可勾选下方选项设为默认。'}</p><p class="model-fee">${icon('info')} MiniMax 新音色首次合成有解锁费用（目录价 ¥9.9），另计试听及合成用量，以平台账单为准。</p></fieldset>`;
 }
 
+let modelScrollObserver;
+function initModelScroll() {
+ modelScrollObserver?.disconnect();
+ modelScrollObserver=new ResizeObserver(entries=>entries.forEach(({target})=>target.updateScrollCue?.()));
+ document.querySelectorAll('.model-list').forEach(list=>{
+  const picker=list.closest('.model-picker'),frame=list.parentElement,rail=frame.querySelector('.model-scroll-rail'),thumb=rail.querySelector('.model-scroll-thumb');
+  const update=()=>{
+   const overflow=list.scrollHeight>list.clientHeight+2,up=list.scrollTop>2,down=list.scrollTop+list.clientHeight<list.scrollHeight-2;
+   const max=Math.max(0,list.scrollHeight-list.clientHeight),height=rail.clientHeight,thumbHeight=Math.min(height,Math.max(28,height*list.clientHeight/Math.max(1,list.scrollHeight)));
+   thumb.style.height=thumbHeight+'px';thumb.style.transform='translateY('+(max?list.scrollTop/max*(height-thumbHeight):0)+'px)';rail.setAttribute('aria-valuemax',String(Math.round(max)));rail.setAttribute('aria-valuenow',String(Math.round(list.scrollTop)));rail.setAttribute('aria-disabled',String(!overflow));rail.classList.toggle('no-overflow',!overflow);
+   frame.classList.toggle('more-above',overflow&&up);frame.classList.toggle('more-below',overflow&&down);
+   picker.querySelector('[data-model-scroll="-1"]').disabled=!up;
+   picker.querySelector('[data-model-scroll="1"]').disabled=!down;
+   const bounds=list.getBoundingClientRect(),rows=Array.from(list.querySelectorAll('.model-choice'));
+   const visible=rows.map((row,i)=>({i,rect:row.getBoundingClientRect()})).filter(({rect})=>rect.bottom>bounds.top+12&&rect.top<bounds.bottom-12);
+   picker.querySelector('.model-scroll-status').textContent=overflow&&visible.length?`显示 ${visible[0].i+1}–${visible.at(-1).i+1} / ${rows.length} · 在此上下滚动`:`全部 ${rows.length} 款模型`;
+  };
+  list.updateScrollCue=update;
+  if(!list.dataset.scrollReady){list.dataset.scrollReady='true';
+   let dragOffset=0;
+   const move=event=>{const box=rail.getBoundingClientRect(),travel=rail.clientHeight-thumb.offsetHeight;list.scrollTop=travel>0?Math.max(0,Math.min(travel,event.clientY-box.top-dragOffset))/travel*(list.scrollHeight-list.clientHeight):0;};
+   rail.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();rail.classList.add('pointer-focus');rail.focus({preventScroll:true});dragOffset=event.target===thumb?event.clientY-thumb.getBoundingClientRect().top:thumb.offsetHeight/2;rail.setPointerCapture(event.pointerId);rail.classList.add('dragging');move(event);});
+   rail.addEventListener('pointermove',event=>{if(rail.hasPointerCapture(event.pointerId))move(event);});
+   rail.addEventListener('pointerup',event=>{if(rail.hasPointerCapture(event.pointerId))rail.releasePointerCapture(event.pointerId);});
+   rail.addEventListener('lostpointercapture',()=>rail.classList.remove('dragging'));
+   rail.addEventListener('keydown',event=>{rail.classList.remove('pointer-focus');const max=list.scrollHeight-list.clientHeight;const positions={ArrowDown:list.scrollTop+40,ArrowUp:list.scrollTop-40,PageDown:list.scrollTop+list.clientHeight,PageUp:list.scrollTop-list.clientHeight,Home:0,End:max};if(event.key in positions){event.preventDefault();list.scrollTop=positions[event.key];}});
+ list.addEventListener('scroll',()=>list.updateScrollCue(),{passive:true});picker.querySelectorAll('[data-model-scroll]').forEach(button=>button.addEventListener('click',()=>list.scrollBy({top:Number(button.dataset.modelScroll)*list.clientHeight*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})));}
+  modelScrollObserver.observe(list);update();
+ });
+}
 function synthesisMarkup(expressionId) {
   const items=state.syntheses.filter(s=>s.body.expression_id===expressionId);
   const labels={queued:'等待生成',running:'正在生成',failed:'生成失败',cancelled:'已取消',succeeded:'已生成'};
@@ -150,6 +181,7 @@ function openDialog(mode, id, example=false) {
     $('#save-editor').disabled = true;
   }
   editor.showModal();
+  initModelScroll();
 }
 function cleanupRecording() {
   resetClip();
