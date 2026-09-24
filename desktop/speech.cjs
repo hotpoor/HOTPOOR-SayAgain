@@ -4,6 +4,7 @@ const {createHash}=require('node:crypto');
 const {newId}=require('../storage/store.cjs');
 const {modelStatus,MODEL,REVISION}=require('./local-model.cjs');
 const {parseWav}=require('./audio.cjs');
+const {normalizeAudioUrl}=require('./audio-url.cjs');
 const CLOUD_MODEL='qwen3-tts-vc-2026-01-22';
 const BASE='https://maas.qianwenaiapi.com/api/v1';
 const LANGUAGES={zh:'Chinese',en:'English',ja:'Japanese',ko:'Korean',de:'German',fr:'French',ru:'Russian',pt:'Portuguese',es:'Spanish',it:'Italian'};
@@ -92,9 +93,8 @@ class Speech {
      s.store.put({type:'voice_prompt',profile_id:s.profileId,provider:'qianwen',voice_id:voice.block_id,sample_id:sample.block_id,remote_voice:remoteVoice,model_id:CLOUD_MODEL,status:'ready',links:[{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'cloud_voice',key:promptKey}]});
     }
     const result=await this.post('/services/aigc/multimodal-generation/generation',{model:CLOUD_MODEL,input:{text:record.body.text_snapshot,voice:remoteVoice,language_type:record.body.language}},key,controller.signal);
-    const url=new URL(result.output?.audio?.url);
-    if(url.protocol!=='https:'||url.username||url.password||!['maas.qianwenaiapi.com','qianwenai.com','aliyuncs.com'].some(host=>url.hostname===host||url.hostname.endsWith('.'+host)))throw new Error('云端返回了不受支持的音频地址');
-    const response=await this.fetch(url.href,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)]),redirect:'error'});
+    const url=normalizeAudioUrl(result.output?.audio?.url);
+    const response=await this.fetch(url,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)]),redirect:'error'});
     if(!response.ok)throw new Error(`下载云端音频失败 (${response.status})`);bytes=await this.readLimited(response,30*1024*1024);
    }
    if(controller.signal.aborted)throw new Error('任务已取消');
