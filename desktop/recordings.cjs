@@ -3,6 +3,18 @@ const {createHash}=require('node:crypto');
 const {newId}=require('../storage/store.cjs');
 const {parseWav}=require('./audio.cjs');
 module.exports=Service=>{
+ Service.prototype.clearRecordingAnalysis=function(input){
+  const session=this.entity(input.id,'recording');
+  if(require('./recording-import.cjs').isBusy(input.id)||require('./recording-models.cjs').isBusy(this,input.id))throw Error('此会话有任务正在处理');
+  return this.store.transaction(()=>{
+   for(const clip of this.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived')){
+    const changes={speaker_analysis:null,keyword_analysis:null};
+    if(clip.body.transcript_status!=='user_reviewed')Object.assign(changes,{transcript:'',transcript_segments:[],transcript_status:'not_started'});
+    this.update(clip,changes);
+   }
+   return this.update(session,{speaker_analysis:null,keyword_analysis:null});
+  });
+ };
  Service.prototype.createRecording=function(input){
   const title=String(input.title||'新录音').trim();if(!title||title.length>120)throw Error('录音标题需为1–120字');
   return this.store.put({type:'recording',profile_id:this.profileId,title,clip_count:0,duration_ms:0});

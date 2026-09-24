@@ -24,7 +24,7 @@ function runAnalysisWorker(python,script,request,onProgress=()=>{},options={}){
      if(value.type==='clip'){
       const item=value.clip;
       if(!item||item.id!==request.clips[results.length]?.id||!Array.isArray(item.segments))throw Error('无效分析结果');
-      results.push(item);arm();onProgress({completed:results.length,total:request.clips.length});
+      options.onClip?.(item);results.push(item);arm();onProgress({completed:results.length,total:request.clips.length});
      }else if(value.type==='done'&&results.length===request.clips.length){finished=true;}
      else throw Error('无效分析结果');
     }
