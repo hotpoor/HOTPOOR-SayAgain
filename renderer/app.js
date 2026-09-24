@@ -32,6 +32,7 @@ let player = null, playerSampleId = null, playerFrame = null, playerCleanup = nu
 let playbackVolume=1,playbackMuted=false;
 try { const saved=JSON.parse(localStorage.getItem('sayagain-playback-volume'));if(saved&&typeof saved.volume==='number'&&Number.isFinite(saved.volume)){playbackVolume=Math.max(0,Math.min(1,saved.volume));playbackMuted=saved.muted===true;} } catch {}
 function volumeMarkup(){const muted=playbackMuted||playbackVolume===0;return `<div class="volume-control" role="group" aria-label="播放音量"><button type="button" class="volume-toggle" data-action="mute" aria-label="${muted?'取消静音':'静音'}" aria-pressed="${muted}">${icon(muted?'mute':'volume')}</button><input class="volume-slider" data-volume type="range" min="0" max="100" step="1" value="${Math.round(playbackVolume*100)}" aria-label="播放音量"><output class="volume-value">${muted?'静音':Math.round(playbackVolume*100)+'%'}</output></div>`;}
+$('#global-volume').innerHTML=volumeMarkup();
 function applyVolume(audio){if(audio){audio.volume=playbackVolume;audio.muted=playbackMuted;}}
 function updateVolume(){
  applyVolume(player);applyVolume($('#audio-preview'));
@@ -39,7 +40,7 @@ function updateVolume(){
  document.querySelectorAll('.volume-control').forEach(control=>{const muted=playbackMuted||playbackVolume===0,button=control.querySelector('.volume-toggle');button.innerHTML=icon(muted?'mute':'volume');button.setAttribute('aria-label',muted?'取消静音':'静音');button.setAttribute('aria-pressed',String(muted));control.querySelector('[data-volume]').value=Math.round(playbackVolume*100);control.querySelector('output').textContent=muted?'静音':Math.round(playbackVolume*100)+'%';});
 }
 let fontPercent=100;try{const saved=Number(localStorage.getItem('sayagain-font-percent'));if(saved>=85&&saved<=130)fontPercent=saved;}catch{}
-function applyFontSize(){document.documentElement.style.setProperty('--font-scale',fontPercent/100);$('#font-size-value').textContent=fontPercent+'%';$('[data-action="font-smaller"]').disabled=fontPercent<=85;$('[data-action="font-larger"]').disabled=fontPercent>=130;try{localStorage.setItem('sayagain-font-percent',fontPercent);}catch{}}
+function applyFontSize(){document.documentElement.style.setProperty('--font-scale',fontPercent/100);$('#font-size-value').textContent=fontPercent+'%';$('#font-size-slider').value=fontPercent;try{localStorage.setItem('sayagain-font-percent',fontPercent);}catch{}}
 applyFontSize();
 function timelineTicks(ms){return '<div class="timeline-ticks" aria-hidden="true">'+[0,.25,.5,.75,1].map(f=>'<span>'+duration(ms*f)+(ms<10000?'.'+Math.floor(ms*f%1000/100):'')+'</span>').join('')+'</div>';}
 const editor = $('#editor');
@@ -106,7 +107,7 @@ function voiceMarkup({block_id:id, body:b, createtime}) {
 }
 function sampleMarkup({block_id:id,body:b,createtime}, voice) {
   const bars = b.waveform.map((v,i) => `<line x1="${i*5+2}" y1="${22-v*19}" x2="${i*5+2}" y2="${22+v*19}" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>`).join('');
-  return `<section class="sample" data-sample="${id}"><div class="sample-header"><span>${escapeHtml(b.language)} · ${b.recorded_at ? '录制' : '导入'} ${date(b.recorded_at || createtime)}</span>${voice.default_sample_id === id ? '<span class="tag">默认样本</span>' : voice.status === 'active' ? `<button class="button quiet" data-action="default-sample" data-id="${id}" data-voice="${b.voice_id}">设为默认</button>` : ''}</div><div class="player"><button class="player-play" aria-label="播放参考录音" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" value="0" aria-label="录音播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${volumeMarkup()}${b.transcript ? `<p class="sample-transcript" dir="auto">${escapeHtml(b.transcript)}</p>` : ''}</section>`;
+  return `<section class="sample" data-sample="${id}"><div class="sample-header"><span>${escapeHtml(b.language)} · ${b.recorded_at ? '录制' : '导入'} ${date(b.recorded_at || createtime)}</span>${voice.default_sample_id === id ? '<span class="tag">默认样本</span>' : voice.status === 'active' ? `<button class="button quiet" data-action="default-sample" data-id="${id}" data-voice="${b.voice_id}">设为默认</button>` : ''}</div><div class="player"><button class="player-play" aria-label="播放参考录音" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" step="any" value="0" aria-label="录音播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${b.transcript ? `<p class="sample-transcript" dir="auto">${escapeHtml(b.transcript)}</p>` : ''}</section>`;
 }
 function apiKeyRow(key,active=false){return `<div class="api-key-row" data-key-id="${escapeHtml(key.id)}"><div class="key-row-heading"><label class="key-active"><input type="radio" name="active_key_id" value="${escapeHtml(key.id)}" ${active?'checked':''}>用于生成</label><input class="key-name" aria-label="Key 名称" maxlength="120" placeholder="备注名称，例如个人、工作" value="${escapeHtml(key.name)}"><button type="button" class="button quiet" data-action="remove-api-key">删除</button></div><span class="key-input"><input class="key-value" aria-label="API Key" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一个完整的 API Key" value="${escapeHtml(key.key)}"><button type="button" class="icon-button key-visibility" data-action="toggle-api-key" aria-label="隐藏 API Key" aria-pressed="true" title="隐藏 API Key">${icon('eyeOff')}</button></span></div>`;}
 function renderSettings() {
@@ -167,7 +168,7 @@ function synthesisMarkup(expressionId) {
 }
 function playbackMarkup(id,b) {
  const bars=(b.waveform||[]).map((v,i)=>`<line x1="${i*5+2}" y1="${22-v*19}" x2="${i*5+2}" y2="${22+v*19}" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>`).join('');
- return `<div data-sample="${id}"><div class="player"><button class="player-play" aria-label="播放音频" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" value="0" aria-label="音频播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${volumeMarkup()}</div>`;
+ return `<div data-sample="${id}"><div class="player"><button class="player-play" aria-label="播放音频" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" step="any" value="0" aria-label="音频播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div></div>`;
 }
 function field(name,label,value='',extra='') { return `<label class="field">${label}<textarea name="${name}" ${extra}>${escapeHtml(value)}</textarea></label>`; }
 function openDialog(mode, id, example=false) {
@@ -335,8 +336,6 @@ document.addEventListener('click', async event => {
       }
       case 'default-voice': await api.defaultVoice({id});await refresh();notify('默认音色已更新');break;
       case 'default-sample': await api.defaultSample({id,voice_id:button.dataset.voice});await refresh();break;
-      case 'font-smaller': fontPercent=Math.max(85,fontPercent-5);applyFontSize();break;
-      case 'font-larger': fontPercent=Math.min(130,fontPercent+5);applyFontSize();break;
       case 'font-reset': fontPercent=100;applyFontSize();break;
       case 'mute': if(playbackMuted||playbackVolume===0){playbackMuted=false;if(playbackVolume===0)playbackVolume=.5;}else playbackMuted=true;updateVolume();break;
       case 'play': await playSample(id);break;
@@ -347,6 +346,7 @@ document.addEventListener('click', async event => {
 });
 document.addEventListener('click',event=>{const wave=event.target.closest('.waveform');if(!wave||event.target.matches('input'))return;const input=wave.querySelector('[data-seek]'),rect=wave.getBoundingClientRect();input.value=Math.max(0,Math.min(1000,(event.clientX-rect.left)/rect.width*1000));input.dispatchEvent(new Event('input',{bubbles:true}));});
 document.addEventListener('input',async event=>{
+  if(event.target.id==='font-size-slider'){fontPercent=Number(event.target.value);applyFontSize();}
   if(event.target.matches('[data-volume]')){playbackVolume=Number(event.target.value)/100;playbackMuted=false;updateVolume();}
   if(['trim-start','trim-end'].includes(event.target.id))updateTrim(event.target.id);
   if(event.target.id==='search'){search=event.target.value;renderEntries();}

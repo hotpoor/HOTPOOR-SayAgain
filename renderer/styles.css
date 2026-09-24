@@ -1078,3 +1078,28 @@ dialog { overflow:hidden; }
 @media(max-width:700px) { .topbar-right { gap:6px; } #language-badge { display:none; } }
 
 .local-plans{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0}.local-plans th,.local-plans td{text-align:left;padding:8px;border-bottom:1px solid #e5e5e5}.local-plans td:first-child{white-space:nowrap}
+#global-volume { -webkit-app-region:no-drag; }
+#global-volume .volume-control { margin:0; }
+.topbar .volume-slider { width:65px; flex:none; }
+.font-controls { gap:6px; }
+.font-small { font-size:10px; color:var(--muted); }
+.font-large { font-size:15px; color:var(--muted); }
+@media(max-width:700px) {
+ .topbar { padding:0 10px; gap:8px; }
+ .topbar .volume-slider { width:46px; }
+ .font-controls { gap:4px; }
+ #breadcrumb { display:none; }
+}
+
+/* Range thumb centres travel along exactly the same span as the SVG playhead. */
+.waveform::after { content:''; position:absolute; top:45px; left:0; width:100%; height:4px; background:#ddd; border-radius:2px; pointer-events:none; }
+.waveform input { left:-4.5px; right:auto; width:calc(100% + 9px); background:transparent; z-index:1; }
+.timeline-ticks { display:block; height:14px; }
+.timeline-ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+.timeline-ticks span:nth-child(1) { left:0; transform:none; }
+.timeline-ticks span:nth-child(2) { left:25%; }
+.timeline-ticks span:nth-child(3) { left:50%; }
+.timeline-ticks span:nth-child(4) { left:75%; }
+.timeline-ticks span:nth-child(5) { left:100%; transform:translateX(-100%); }
+.timeline-ticks span:first-child::before { left:0; }
+.timeline-ticks span:last-child::before { left:auto; right:0; }
