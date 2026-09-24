@@ -982,3 +982,7 @@ dialog::backdrop {
 
 .record-studio.has-clip #live-wave { display: none; }
 .record-studio.has-clip .record-controls { margin-top: 12px; }
+
+.key-input { position: relative; display: flex; align-items: center; }
+.key-input input { width: 100%; padding-right: 46px; font-family: ui-monospace, monospace; }
+.key-input .key-visibility { position: absolute; right: 6px; width: 32px; height: 32px; color: #777; }
