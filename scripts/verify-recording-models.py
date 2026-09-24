@@ -4,7 +4,15 @@ import numpy as np,soundfile as sf,soxr,sherpa_onnx
 p=argparse.ArgumentParser();p.add_argument('--user-dir',required=True);p.add_argument('--audio',required=True);a=p.parse_args()
 target=pathlib.Path(a.user_dir)/'recording-models/runtime.json';r=json.loads(target.read_text(encoding='utf-8'))
 worker=pathlib.Path(__file__).resolve().parent.parent/'workers/transcribe_recording.py'
-out=subprocess.run([r['python'],str(worker)],input=json.dumps({'models':r['models'],'audio':a.audio}),capture_output=True,text=True,encoding='utf-8',env={**os.environ,'PYTHONIOENCODING':'utf-8'},timeout=180)
+from funasr_onnx import Fsmn_vad
+reference,reference_rate=sf.read(a.audio,dtype='float32')
+if reference.ndim>1:reference=reference.mean(axis=1)
+if reference_rate!=16000:reference=soxr.resample(reference,reference_rate,16000)
+spans=Fsmn_vad(r['models']['fsmn']['path'],quantize=True)(reference)
+if len(spans)==1 and isinstance(spans[0],list) and (not spans[0] or isinstance(spans[0][0],list)):spans=spans[0]
+turns=[{'start_ms':a,'end_ms':b,'speaker':'test'} for a,b in spans]
+assert turns
+out=subprocess.run([r['python'],str(worker)],input=json.dumps({'models':r['models'],'audio':a.audio,'turns':turns}),capture_output=True,text=True,encoding='utf-8',env={**os.environ,'PYTHONIOENCODING':'utf-8'},timeout=180)
 assert out.returncode==0,out.stdout
 result=json.loads(out.stdout);assert result['text'].strip() and result['segments']
 audio,rate=sf.read(a.audio,dtype='float32');audio=audio.mean(axis=1) if audio.ndim>1 else audio

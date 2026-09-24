@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell, clipboard, nativeImage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const {createReadStream}=require('node:fs');
+const {Readable}=require('node:stream');
 const { pathToFileURL } = require('node:url');
 const { Service } = require('./service.cjs');
 const { startBridge } = require('./bridge.cjs');
@@ -29,7 +31,7 @@ else {
     bridge=await startBridge(service,app.getPath('userData'),changed);
     speakerPipeline=new (require('./speaker-pipeline.cjs').SpeakerPipeline)(service,app.getPath('userData'),changed);
     speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
-    const methods = ['createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
+    const methods = ['confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       if (method !== 'state' && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('无效的操作参数');
@@ -44,13 +46,21 @@ else {
       if(input?.action==='session')return speakerPipeline.start({id:input.id,options:input.options});
       if(input?.action==='import'){
         if(speakerPipeline.status().state==='running')throw Error('已有任务正在运行');
-        const result=await dialog.showOpenDialog(win,{title:'导入音频并分人转写',properties:['openFile'],filters:[{name:'音频',extensions:['mp3','wav','m4a','flac','ogg','aac','opus']} ]});
+        const result=await dialog.showOpenDialog(win,{title:'导入音频并分人拆条',properties:['openFile'],filters:[{name:'音频',extensions:['mp3','wav','m4a','flac','ogg','aac','opus']} ]});
         if(result.canceled)return null;
         return speakerPipeline.start({filename:result.filePaths[0],options:input.options});
       }
       throw Error('无效分段操作');
     });
-    ipcMain.handle('sayagain:analyzeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').analyze(service,app.getPath('userData'),input);});
+    ipcMain.handle('sayagain:reanalyzeRecording',async(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');const models=require('./recording-models.cjs');
+      const progress=stage=>p=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,stage,...p});};
+      return models.transcribeAll(service,app.getPath('userData'),input,progress('transcribing'));
+    });
+    ipcMain.handle('sayagain:resegmentRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').resegment(service,input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-import-progress',progress);});});
+    ipcMain.handle('sayagain:importRecordingFiles',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').importFiles(service,input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-import-progress',progress);});});
+    ipcMain.handle('sayagain:cancelRecordingImport',(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-import.cjs').cancel(input.id);});
+    ipcMain.handle('sayagain:analyzeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').analyze(service,app.getPath('userData'),input,progress=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,...progress});});});
     ipcMain.handle('sayagain:recordingModels',event=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').status(app.getPath('userData'));});
     ipcMain.handle('sayagain:transcribeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').transcribe(service,app.getPath('userData'),input);});
     ipcMain.handle('sayagain:skillPackage',async(event,action)=>{
@@ -80,20 +90,20 @@ else {
         const url = new URL(request.url);
         if (url.hostname !== 'audio' || !/^\/[0-9a-f]{32}$/.test(url.pathname) || !['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 404 });
         const asset = service.asset(url.pathname.slice(1));
-        const bytes = await fs.readFile(asset.filename);
-        const headers = { 'Content-Type': asset.media_type, 'Accept-Ranges': 'bytes', 'Content-Length': String(bytes.length) };
-        let start = 0, end = bytes.length - 1;
+        const size = (await fs.stat(asset.filename)).size;
+        const headers = { 'Content-Type': asset.media_type, 'Accept-Ranges': 'bytes', 'Content-Length': String(size) };
+        let start = 0, end = size - 1;
         const range = request.headers.get('Range');
         if (range) {
           const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-          if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.length}` } });
+          if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
           if (match[1]) { start = Number(match[1]); if (match[2]) end = Math.min(Number(match[2]), end); }
-          else start = Math.max(0, bytes.length - Number(match[2]));
-          if (start > end || start >= bytes.length || !Number.isSafeInteger(start)) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.length}` } });
-          headers['Content-Range'] = `bytes ${start}-${end}/${bytes.length}`;
+          else start = Math.max(0, size - Number(match[2]));
+          if (start > end || start >= size || !Number.isSafeInteger(start)) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+          headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
           headers['Content-Length'] = String(end - start + 1);
         }
-        return new Response(request.method === 'HEAD' ? null : bytes.subarray(start, end + 1), { status: range ? 206 : 200, headers });
+        return new Response(request.method === 'HEAD' ? null : Readable.toWeb(createReadStream(asset.filename,{start,end})), { status: range ? 206 : 200, headers });
       } catch { return new Response(null, { status: 404 }); }
     });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -116,4 +126,4 @@ async function createWindow() {
 }
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('before-quit',event=>{if(speech&&!quitting){event.preventDefault();quitting=true;speech.close().finally(()=>app.quit());}});
-app.on('will-quit', () => {speakerPipeline?.close();bridge?.close();service?.close();});
+app.on('will-quit', () => {speakerPipeline?.close();require('./recording-import.cjs').close();bridge?.close();service?.close();});

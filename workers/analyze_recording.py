@@ -2,10 +2,13 @@ import contextlib,json,sys,pathlib,tempfile
 
 def main():
     request=json.load(sys.stdin)
+    output=sys.stdout
+    def emit(value):
+        print(json.dumps(value,ensure_ascii=False),file=output,flush=True)
     with contextlib.redirect_stdout(sys.stderr):
         import numpy as np,soundfile as sf,soxr,sherpa_onnx
         from funasr_onnx import Fsmn_vad
-        models=request['models']; mode=request['mode']; outputs=[];centers=[]
+        models=request['models']; mode=request['mode']; centers=[]
         if mode=='speakers':
             vad=Fsmn_vad(models['fsmn']['path'],quantize=True)
             extractor=sherpa_onnx.SpeakerEmbeddingExtractor(sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=models['campplus']['path'],num_threads=2,provider='cpu'))
@@ -45,8 +48,8 @@ def main():
                     spotter.decode_stream(stream);hit=spotter.get_result(stream)
                     if hit:
                         index=int(hit[1:]);segments.append({'keyword':request['keywords'][index]});spotter.reset_stream(stream)
-            outputs.append({'id':clip['id'],'segments':segments})
-    print(json.dumps({'clips':outputs},ensure_ascii=False))
+            emit({'type':'clip','clip':{'id':clip['id'],'segments':segments}})
+    emit({'type':'done'})
 if __name__=='__main__':
     try:main()
     except Exception as error:print(json.dumps({'error':str(error)}));sys.exit(1)

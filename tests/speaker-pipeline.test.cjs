@@ -35,3 +35,15 @@ test('pipeline requires explicit model registration without downloading or creat
  const {root,s}=fixture(t),pipeline=new SpeakerPipeline(s,root);
  assert.throws(()=>pipeline.start({filename:path.join(root,'00001.wav')}),/登记/);assert.equal(pipeline.status().state,'idle');assert.equal(s.store.list('recording').length,0);
 });
+
+test('candidate import preserves original and requires confirmation before transcription',t=>{
+ const {root,s,manifest,sources}=fixture(t);manifest.clips[0].text='';sources[0].audio=path.join(root,'00001.wav');
+ const result=persist(s,root,manifest,sources,'Candidate');
+ const clip=s.store.list('recording_clip').find(c=>c.body.recording_id===result.block_id);
+ assert.equal(clip.body.transcript,'');assert.equal(clip.body.transcription_language,'en');
+ assert.throws(()=>require('../desktop/confirmed-turns.cjs').confirmed(clip),/确认/);
+ const source=s.store.list('recording_source').find(r=>r.body.recording_id===result.block_id);
+ assert.deepEqual(fs.readFileSync(s.asset(source.body.original_asset_id).filename),wav());
+ s.confirmRecordingTurns({id:clip.block_id,revision:clip.body.revision,segments:clip.body.speaker_analysis.segments});
+ assert.equal(require('../desktop/confirmed-turns.cjs').confirmed(s.entity(clip.block_id,'recording_clip'))[0].speaker,'A');
+});

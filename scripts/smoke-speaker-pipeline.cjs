@@ -12,7 +12,12 @@ const root=path.resolve(__dirname,'..'),directory=fs.mkdtempSync(path.join(os.tm
  await page.waitForFunction(async()=>{const j=await window.sayagain.speakerPipeline({action:'status'});if(j.state==='failed')throw Error(j.error);return j.state==='completed';},{},{timeout:300000});
  await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('已生成'));
  console.log('Pipeline UI completed');let state=await page.evaluate(()=>window.sayagain.state());const result=state.recordings.find(r=>r.body.pipeline);assert(result);assert(result.body.clip_count>5);assert.equal(result.body.pipeline.clustering.speakers,2);
- const clips=state.recording_clips.filter(c=>c.body.recording_id===result.block_id);assert(clips.every(c=>c.body.duration_ms<=18001&&c.body.transcript_status==='machine_unreviewed'));assert(clips.some(c=>c.body.transcript.length>10));
+ const clips=state.recording_clips.filter(c=>c.body.recording_id===result.block_id);assert(clips.every(c=>c.body.duration_ms<=18001&&c.body.transcript_status==='empty'&&c.body.speaker_analysis.status==='machine_unreviewed'));assert(clips.every(c=>!c.body.transcript));assert(state.recording_sources.some(s=>s.body.recording_id===result.block_id&&s.body.original_asset_id));
+ assert(await page.locator('[data-transcribe]').first().isDisabled());
+ // Explicit test-only confirmation: no production user data is modified.
+ await page.locator('[data-turn-confirm]').first().click();await page.waitForFunction(()=>!document.querySelector('[data-transcribe]').disabled);await page.locator('[data-transcribe]').first().click();
+ await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('转写已保存'),{},{timeout:180000});
+ state=await page.evaluate(()=>window.sayagain.state());assert(state.recording_clips.some(c=>c.body.recording_id===result.block_id&&c.body.transcript.length>0));
  await page.locator('#clip-speaker').selectOption('A');assert((await page.locator('.recording-clip').count())>0);await page.locator('#clip-speaker').selectOption('');
  const audio=page.locator('.recording-clip audio').first();await audio.evaluate(a=>a.play());await page.waitForFunction(()=>document.querySelector('.recording-clip audio').currentTime>0);await audio.evaluate(a=>a.pause());
  console.log('Playback passed');await page.reload();await page.locator('[data-page="recordings"]').click();state=await page.evaluate(()=>window.sayagain.state());assert(state.recordings.some(r=>r.block_id===result.block_id));

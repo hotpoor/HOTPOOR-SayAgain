@@ -33,6 +33,11 @@ function validateManifest(manifest,sources,folder){
 function persist(service,folder,manifest,sources,title,parent){
  const rows=validateManifest(manifest,sources,folder),created=[],recordingId=newId();
  try{
+  let original;
+  if(!parent&&sources[0]?.audio){
+   const id=newId(),ext=path.extname(sources[0].audio).toLowerCase(),relative=`assets/${id}${/^[.][a-z0-9]{1,8}$/.test(ext)?ext:'.audio'}`,filename=path.join(service.directory,relative);
+   fs.copyFileSync(sources[0].audio,filename,fs.constants.COPYFILE_EXCL);created.push(filename);original={id,relative,ext,byte_size:fs.statSync(filename).size};
+  }
   const prepared=rows.map(c=>{
    const asset_id=newId(),relative_path=`assets/${asset_id}.wav`,filename=path.join(service.directory,relative_path);
    const bytes=fs.readFileSync(c.filename),fd=fs.openSync(filename,'wx',0o600);created.push(filename);
@@ -46,10 +51,15 @@ function persist(service,folder,manifest,sources,title,parent){
    }
    const {clips,...run}=manifest;
    const session=service.store.put({type:'recording',profile_id:service.profileId,title:String(title+' · 分人语音条').slice(0,120),clip_count:prepared.length,duration_ms:prepared.reduce((n,c)=>n+c.format.duration_ms,0),pipeline:{...run,created_at:Date.now(),review_count:prepared.filter(c=>c.review).length,status:'machine_unreviewed'},links:parent?[{relation:'source_recording',target_id:parent.block_id}]:[]},{id:recordingId});
+   let sourceId=null;
+   if(original){
+    service.store.put({type:'asset',profile_id:service.profileId,relative_path:original.relative,media_type:original.ext==='.mp3'?'audio/mpeg':original.ext==='.wav'?'audio/wav':'audio/mp4',byte_size:original.byte_size},{id:original.id});
+    sourceId=service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:sources[0].name,sequence:0,original_asset_id:original.id,input_assets:[original.id],duration_ms:manifest.duration_ms,segmented:true}).block_id;
+   }
    for(const [sequence,c] of prepared.entries()){
     const source=sources[c.source_index];
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:c.relative_path,sha256:c.sha256,media_type:'audio/wav',byte_size:c.byte_size,duration_ms:c.format.duration_ms},{id:c.asset_id});
-    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence,source:'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,transcript:c.text,transcript_status:'machine_unreviewed',transcript_segments:[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker:c.speaker}],speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.id||null,source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.id?[{relation:'source_clip',target_id:source.id}]:[])]});
+    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(sourceId?{recording_source_id:sourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence,source:'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker:c.speaker}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:c.speaker||'不确定'}]},speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.id||null,source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.id?[{relation:'source_clip',target_id:source.id}]:[])]});
    }
    return session;
   });
@@ -66,8 +76,9 @@ class SpeakerPipeline{
    if(!stat.isFile()||stat.size>2*1024**3)throw Error('请选择不超过2GB的音频文件');
    sources=[{audio:filename,name:path.basename(filename),offset_ms:0}];title=path.basename(filename,path.extname(filename));
   }else{
+   if(require('./recording-import.cjs').isBusy(input.id)||require('./recording-models.cjs').isBusy(this.service,input.id))throw Error('此会话正在处理');
    parent=this.service.entity(input.id,'recording');title=parent.body.title;
-   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id).sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.duration_ms,captured_at:c.body.captured_at}));
+   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived').sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.duration_ms,captured_at:c.body.captured_at}));
    if(!sources.length||sources.length>2000)throw Error('支持1–2000个原始片段');
    if(sources.reduce((n,c)=>n+c.duration_ms,0)>14400000)throw Error('一次最多处理4小时音频');
   }
@@ -96,7 +107,7 @@ class SpeakerPipeline{
   });
   child.stdin.on('error',()=>{});child.on('error',finish);
   child.on('close',code=>{let message=lastError;try{message=JSON.parse(output).error||message;}catch{}finish(code!==0?Error(message||(timedOut?'处理超时':'本地模型处理失败，请检查依赖和 FFmpeg')):null);});
-  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg:runtime.ffmpeg||'ffmpeg',sources,options:settings,output_dir:folder}));
+  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg:runtime.ffmpeg||'ffmpeg',sources,options:settings,transcribe:false,output_dir:folder}));
   return this.status();
  }
  kill(){if(!this.child)return;try{if(process.platform==='win32')spawn('taskkill',['/pid',String(this.child.pid),'/T','/F'],{windowsHide:true});else process.kill(-this.child.pid,'SIGKILL');}catch{this.child.kill();}}

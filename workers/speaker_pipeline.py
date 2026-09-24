@@ -176,9 +176,11 @@ def run(request):
                 turns[-1]['end']=bb;turns[-1]['similarities'].append(sim)
             else:
                 turns.append({'source':si,'start':aa,'end':bb,'label':label,'similarities':[sim]})
-    recognizer_path=pathlib.Path(models['sensevoice']['path'])
-    model=next(recognizer_path.glob('*int8.onnx'))
-    recognizer=sh.OfflineRecognizer.from_sense_voice(model=str(model),tokens=str(recognizer_path/'tokens.txt'),language=config['language'],use_itn=True,num_threads=4)
+    recognizer=None
+    if request.get('transcribe',True):
+        recognizer_path=pathlib.Path(models['sensevoice']['path'])
+        model=next(recognizer_path.glob('*int8.onnx'))
+        recognizer=sh.OfflineRecognizer.from_sense_voice(model=str(model),tokens=str(recognizer_path/'tokens.txt'),language=config['language'],use_itn=True,num_threads=4)
     clips=[]; current=None; audio=None
     for ti,turn in enumerate(turns):
         if current!=turn['source']:
@@ -188,10 +190,12 @@ def run(request):
             start_ms=int(round(a*1000));end_ms=int(round(b*1000))
             samples=audio[start_ms*16:end_ms*16]
             if not len(samples):continue
-            stream=recognizer.create_stream();stream.accept_waveform(16000,samples);recognizer.decode_stream(stream)
+            text=''
+            if recognizer:
+                stream=recognizer.create_stream();stream.accept_waveform(16000,samples);recognizer.decode_stream(stream);text=stream.result.text
             filename=f'{len(clips)+1:05d}.wav';sf.write(out/filename,samples,16000,subtype='PCM_16')
             sim=float(np.mean(turn['similarities']));speaker=None if turn['label']<0 else chr(65+turn['label'])
-            clips.append({'file':filename,'source_index':current,'start_ms':start_ms,'end_ms':end_ms,'speaker':speaker,'similarity':sim,'review':speaker is None or sim<config['review_similarity'],'text':stream.result.text})
+            clips.append({'file':filename,'source_index':current,'start_ms':start_ms,'end_ms':end_ms,'speaker':speaker,'similarity':sim,'review':speaker is None or sim<config['review_similarity'],'text':text})
         if ti%10==0:progress('transcribe',ti,len(turns))
     # Include fingerprints and versions for reproducibility, never audio/text in progress logs.
     hashes={}
