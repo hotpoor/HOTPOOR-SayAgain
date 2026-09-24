@@ -1076,3 +1076,16 @@ dialog { overflow:hidden; }
 .timeline-ticks span { position:relative; }
 .timeline-ticks span::before { content:''; position:absolute; width:1px; height:3px; background:#ccc; top:-4px; left:50%; }
 @media(max-width:700px) { .topbar-right { gap:6px; } #language-badge { display:none; } }
+
+#global-volume { -webkit-app-region:no-drag; }
+#global-volume .volume-control { margin:0; }
+.topbar .volume-slider { width:65px; flex:none; }
+.font-controls { gap:6px; }
+.font-small { font-size:10px; color:var(--muted); }
+.font-large { font-size:15px; color:var(--muted); }
+@media(max-width:700px) {
+ .topbar { padding:0 10px; gap:8px; }
+ .topbar .volume-slider { width:46px; }
+ .font-controls { gap:4px; }
+ #breadcrumb { display:none; }
+}
