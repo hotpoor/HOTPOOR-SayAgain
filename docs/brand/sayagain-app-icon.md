@@ -1,0 +1,9 @@
+# SayAgain app icon
+
+Final asset: ../../renderer/assets/sayagain-icon.png
+
+The current white-tile, black-symbol icon was supplied and selected by the user. It is copied unchanged from the provided PNG. The horizontal wordmark at ../../renderer/assets/sayagain-wordmark.png also uses the user-provided final image.
+
+## Earlier concept prompt (superseded)
+
+Use case: logo-brand. Create a single production app icon for SayAgain, square 1024x1024 composition. A solid near-black rounded square tile with generously rounded corners and a tiny clear transparent margin outside the tile. In the center, a large crisp WHITE emblem consisting of TWO speech bubbles stacked to form an S. Precisely: the upper speech bubble is horizontally rounded like a pill, with a short triangular tail pointing down-right, and exactly THREE small circular black dots in a horizontal row inside. The lower speech bubble mirrors the upper with its tail pointing down-left, also exactly THREE small circular black dots. The negative space between the two white bubbles is a flowing diagonal band suggesting the letter S. Both bubbles have identical visual weight and generous clean separation. The entire white emblem occupies approximately 66 percent of the black tile width and 70 percent of its height. This is the icon counterpart of the black-and-white SayAgain wordmark by HOTPOOR XIALIWEI. Flat solid fills, clean precise vector-like edges, strong tiny-size legibility, balanced optical centering. NO words or letters printed on the tile, NO branding text, NO gradients, NO glass, NO shadows, NO 3D, NO mockup, NO extra border. Only black rounded-square tile and white two-bubble S symbol.
