@@ -7,10 +7,21 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
  const session=s.createRecording({title:'产品对谈 · 界面测试'});
  for(let i=0;i<43;i++){const c=s.addRecordingClip({recording_id:session.block_id,client_id:'chat-'+i,source:'import',source_name:'示例访谈.wav',source_offset_ms:1574+i*12000,bytes:wav()});const speaker=i%3===2?'B':'A';s.update(c,{speaker,transcript:i%3===2?'We want every conversation to be easy to follow. You can listen to a short clip and read the words right below it.':'What would make this conversation easier to revisit? 我希望能看清每一段的时间，也能知道是谁在说话。',transcript_status:'machine_unreviewed',speaker_analysis:{status:'user_confirmed',segments:[{speaker,start_ms:0,end_ms:1000}]}});}
  s.close();
- app=await electron.launch({args:[root],env:{...process.env,SAYAGAIN_DATA_DIR:directory},timeout:60000});const page=await app.firstWindow(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.setContentSize(1280,960);w.hide();});
+ app=await electron.launch({args:[root],env:{...process.env,SAYAGAIN_DATA_DIR:directory},timeout:60000});const page=await app.firstWindow(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/Content Security Policy|inline style/i.test(m.text()))errors.push(m.text());});await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.setContentSize(1280,960);w.hide();});
  await page.locator('[data-page="recordings"]').click();await page.locator('[data-recording-open]').waitFor();assert.match(await page.locator('.recording-dates').innerText(),/创建.*最后更新/s);await page.locator('[data-recording-open]').click();
  assert.equal(await page.locator('.chat-message').count(),43);assert.equal(await page.locator('.speaker-card').count(),2);assert.equal(await page.locator('#clips-next,[data-source-expand]').count(),0);
  const viewport=page.locator('.conversation-source-clips').first();
+ assert.equal(Math.round((await viewport.boundingBox()).height),520);
+ assert(await viewport.evaluate(el=>el.scrollHeight>el.clientHeight+500));
+ assert(await page.locator('[data-scroll-position]').isEnabled());
+ await viewport.scrollIntoViewIfNeeded();await viewport.hover();await page.mouse.wheel(0,400);
+ await page.waitForFunction(()=>document.querySelector('.conversation-source-clips').scrollTop>100);
+ await page.locator('[data-scroll-top]').click();
+ const slider=page.locator('[data-scroll-position]');await slider.scrollIntoViewIfNeeded();const track=await slider.boundingBox();
+ await page.mouse.move(track.x+track.width/2,track.y+8);await page.mouse.down();await page.mouse.move(track.x+track.width/2,track.y+track.height-8,{steps:12});await page.mouse.up();
+ await page.waitForFunction(()=>{const el=document.querySelector('.conversation-source-clips');return el.scrollTop/(el.scrollHeight-el.clientHeight)>.95;});
+ await page.locator('[data-scroll-top]').click();
+
  await viewport.evaluate(el=>el.scrollTop=12);await page.waitForTimeout(50);
  const sticky=await page.locator('.speaker-run-identity').first().boundingBox(),container=await viewport.boundingBox();assert(sticky.y>=container.y+8);assert(sticky.y<container.y+35);
  await page.locator('[data-scroll-position]').evaluate(el=>{el.value='1000';el.dispatchEvent(new Event('input'));});
@@ -22,7 +33,7 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
  assert.match(await page.locator('.speaker-card').first().textContent(),/负责提问/);assert.equal(await page.locator('#clip-speaker option[value="A"]').innerText(),'主持人');assert.equal(await page.locator('.chat-message').count(),43);assert.match(await page.locator('.chat-meta').first().textContent(),/主持人/);
  await page.locator('#clip-speaker').selectOption('B');assert.equal(await page.locator('.chat-message').count(),14);await page.locator('#clip-speaker').selectOption('');
  await page.locator('.chat-row-edit > summary').first().click();await page.locator('.recording-notes summary').first().click();await page.locator('[data-transcript]').first().fill('人工修正后的文字');await page.locator('[data-save-transcript]').first().click();await page.waitForFunction(()=>document.querySelector('.chat-transcript').textContent==='人工修正后的文字');
- await page.reload();await page.locator('[data-page="recordings"]').click();await page.locator('[data-recording-open]').click();assert.equal(await page.locator('.chat-meta strong').first().textContent(),'主持人');assert.equal(await page.locator('.chat-transcript').first().innerText(),'人工修正后的文字');
+ await page.reload();await page.locator('[data-page="recordings"]').click();await page.locator('[data-recording-open]').click();assert.equal(Math.round((await viewport.boundingBox()).height),340);assert(await slider.isEnabled());assert.equal(await page.locator('.chat-meta strong').first().textContent(),'主持人');assert.equal(await page.locator('.chat-transcript').first().innerText(),'人工修正后的文字');
  // Local avatar is resized, persisted and reflected in every speaker surface.
  await page.locator('.reader-people-button').click();await page.locator('.speaker-card summary').first().click();
  await page.locator('[data-avatar-file]').first().setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.fillStyle='#3478ac';x.fillRect(0,0,16,16);return c.toDataURL('image/png').split(',')[1];}),'base64')});
