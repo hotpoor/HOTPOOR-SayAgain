@@ -24,7 +24,7 @@ async function transcribe(service,directory,input){
 module.exports={status,transcribe};
 
 const analyzing=new Set();
-async function analyze(service,directory,input){
+async function analyze(service,directory,input,onProgress=()=>{}){
  const session=service.entity(input.id,'recording'),r=runtime(directory),mode=input.mode;
  if(!['speakers','keywords'].includes(mode))throw Error('无效分析模式');
  const keywords=mode==='keywords'?String(input.keywords||'').split(/[\n,，]/).map(x=>x.trim()).filter(Boolean):[];
@@ -33,16 +33,13 @@ async function analyze(service,directory,input){
  if(!r?.python||!required.every(k=>r.models?.[k]&&fs.existsSync(r.models[k].path)))throw Error('请先让 Skill 登记所需模型');
  if(analyzing.has(input.id))throw Error('此会话正在分析');
  const clips=service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id).sort((a,b)=>a.body.sequence-b.body.sequence);
- if(!clips.length||clips.length>100)throw Error('一次分析支持1–100个片段');
+ if(!clips.length)throw Error('请先录音或导入音频，再开始分析');
  analyzing.add(input.id);
  try{
-  const result=await new Promise((resolve,reject)=>{
-   const child=spawn(r.python,[path.join(__dirname,'../workers/analyze_recording.py')],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PYTHONIOENCODING:'utf-8'}});let output='';
-   const timer=setTimeout(()=>child.kill(),600000);
-   child.stdout.on('data',data=>{output+=data;if(output.length>2000000)child.kill();});child.stderr.on('data',()=>{});child.stdin.on('error',()=>{});
-   child.on('error',e=>{clearTimeout(timer);reject(e);});child.on('close',code=>{clearTimeout(timer);try{const value=JSON.parse(output);if(code||value.error)reject(Error(value.error||'分析失败'));else resolve(value);}catch{reject(Error('分析超时或输出无效'));}});
-   child.stdin.end(JSON.stringify({mode,keywords,models:r.models,clips:clips.map(c=>({id:c.block_id,audio:service.asset(c.body.asset_id).filename}))}));
-  });
+  onProgress({completed:0,total:clips.length});
+  const result=await require('./analysis-worker.cjs').runAnalysisWorker(r.python,path.join(__dirname,'../workers/analyze_recording.py'),{
+   mode,keywords,models:r.models,clips:clips.map(c=>({id:c.block_id,audio:service.asset(c.body.asset_id).filename}))
+  },onProgress);
   if(!Array.isArray(result.clips)||result.clips.length!==clips.length||result.clips.some((c,i)=>c.id!==clips[i].block_id||!Array.isArray(c.segments)))throw Error('无效分析结果');
   return service.store.transaction(()=>{
    if(service.entity(input.id,'recording').body.revision!==session.body.revision)throw Error('会话已改变，请重新分析');
