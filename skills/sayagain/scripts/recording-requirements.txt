@@ -1,0 +1,8 @@
+sherpa-onnx==1.13.8
+funasr-onnx==0.4.3
+numpy==1.26.4
+soundfile==0.14.0
+soxr==1.1.0
+onnxruntime==1.23.2
+requests>=2.32,<3
+PyYAML>=6,<7

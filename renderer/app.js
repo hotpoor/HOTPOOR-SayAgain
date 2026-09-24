@@ -62,10 +62,11 @@ function render() {
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',settings:'设置'}[page];
+  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的录音',settings:'设置'}[page];
   if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
   if (page === 'voices') renderVoices();
+  if (page === 'recordings') window.recordingPage.render($('#main'),state);
   if (page === 'settings') renderSettings();
 }
 function languageField(name, label, value) {
@@ -344,7 +345,7 @@ async function playSample(id) {
 document.addEventListener('click', async event => {
   const button = event.target.closest('button'); if (!button) return;
   try {
-    if (button.dataset.page) { page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
+    if (button.dataset.page) { state=await api.state();page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
     const id = button.dataset.id;
     switch(button.dataset.action) {
       case 'sidebar': {
