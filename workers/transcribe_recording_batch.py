@@ -23,7 +23,7 @@ def main():
                 start,end=turn['start_ms'],turn['end_ms']
                 if end<=start:continue
                 stream=recognizer.create_stream();stream.accept_waveform(16000,audio[int(start*16):int(end*16)]);recognizer.decode_stream(stream)
-                segments.append({'start_ms':start,'end_ms':end,'speaker':turn['speaker'],'text':stream.result.text})
+                segments.append({'start_ms':start,'end_ms':end,'speaker':turn['speaker'],'speakers':turn.get('speakers',[turn['speaker']]),'text':stream.result.text})
             emit({'type':'clip','clip':{'id':clip['id'],'text':' '.join(s['text'] for s in segments),'segments':segments}})
     emit({'type':'done'})
 if __name__=='__main__':

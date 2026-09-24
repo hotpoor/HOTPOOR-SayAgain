@@ -31,7 +31,7 @@ else {
     bridge=await startBridge(service,app.getPath('userData'),changed);
     speakerPipeline=new (require('./speaker-pipeline.cjs').SpeakerPipeline)(service,app.getPath('userData'),changed);
     speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
-    const methods = ['confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
+    const methods = ['updateRecordingSpeaker','confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       if (method !== 'state' && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('无效的操作参数');

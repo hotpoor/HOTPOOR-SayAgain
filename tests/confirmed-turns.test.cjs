@@ -5,3 +5,7 @@ test('confirmed turns reject overlap, inverted bounds, overflow and missing spea
  assert.deepEqual(validateTurns([{start_ms:0,end_ms:500,speaker:' A '},{start_ms:500,end_ms:1000,speaker:'B'}],1000).map(t=>t.speaker),['A','B']);
  assert.throws(()=>confirmed({body:{duration_ms:1000,speaker_analysis:{status:'machine_unreviewed',segments:[]}}}),/确认/);
 });
+test('multiple selected speakers retain separate identities and reject empty or ambiguous choices',()=>{
+ const row={start_ms:0,end_ms:1000,speakers:['A','B']};assert.deepEqual(validateTurns([row],1000)[0].speakers,['A','B']);
+ for(const speakers of [[],['A','A'],['不确定','A'],[''],[42]])assert.throws(()=>validateTurns([{...row,speakers}],1000));
+});

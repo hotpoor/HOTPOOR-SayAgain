@@ -18,7 +18,7 @@ def main():
             start,end=turn['start_ms'],turn['end_ms']
             if end<=start:continue
             stream=recognizer.create_stream();stream.accept_waveform(rate,audio[int(start*16):int(end*16)]);recognizer.decode_stream(stream)
-            outputs.append({'start_ms':start,'end_ms':end,'speaker':turn['speaker'],'text':stream.result.text})
+            outputs.append({'start_ms':start,'end_ms':end,'speaker':turn['speaker'],'speakers':turn.get('speakers',[turn['speaker']]),'text':stream.result.text})
     print(json.dumps({'text':' '.join(x['text'] for x in outputs),'segments':outputs},ensure_ascii=False))
 if __name__=='__main__':
     try:main()

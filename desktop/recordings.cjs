@@ -3,6 +3,21 @@ const {createHash}=require('node:crypto');
 const {newId}=require('../storage/store.cjs');
 const {parseWav}=require('./audio.cjs');
 module.exports=Service=>{
+ Service.prototype.updateRecordingSpeaker=function(input){
+  const session=this.entity(input.id,'recording');
+  if(session.body.revision!==input.revision)throw Error('会话已更新，请刷新后重试');
+  if(typeof input.key!=='string'||!input.key.trim()||input.key.length>60||typeof input.name!=='string'||input.name.length>60||typeof input.note!=='string'||input.note.length>500)throw Error('说话人备注格式无效（名称最多60字，备注最多500字）');
+  const clips=this.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived');
+  const view=require('../renderer/recording-view.js');
+  if(!(session.body.speaker_profiles||[]).some(p=>p.key===input.key)&&!clips.some(c=>view.keys(c).includes(input.key)))throw Error('此会话没有该说话人');
+  const previous=(session.body.speaker_profiles||[]).find(p=>p.key===input.key);
+  const avatar=input.avatar===undefined?(previous?.avatar||''):input.avatar;
+  if(typeof avatar!=='string'||avatar.length>400000||(avatar&&!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)))throw Error('头像需为本地 PNG、JPEG 或 WebP 图片');
+  const profiles=(session.body.speaker_profiles||[]).filter(p=>p.key!==input.key);
+  if(input.name.trim()||input.note.trim()||avatar)profiles.push({key:input.key,name:input.name.trim(),note:input.note.trim(),...(avatar?{avatar}:{})});
+  return this.update(session,{speaker_profiles:profiles});
+ };
+
  Service.prototype.clearRecordingAnalysis=function(input){
   const session=this.entity(input.id,'recording');
   if(require('./recording-import.cjs').isBusy(input.id)||require('./recording-models.cjs').isBusy(this,input.id))throw Error('此会话有任务正在处理');

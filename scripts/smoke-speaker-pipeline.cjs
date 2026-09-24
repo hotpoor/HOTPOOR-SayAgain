@@ -15,7 +15,7 @@ const root=path.resolve(__dirname,'..'),directory=fs.mkdtempSync(path.join(os.tm
  const clips=state.recording_clips.filter(c=>c.body.recording_id===result.block_id);assert(clips.every(c=>c.body.duration_ms<=18001&&c.body.transcript_status==='empty'&&c.body.speaker_analysis.status==='machine_unreviewed'));assert(clips.every(c=>!c.body.transcript));assert(state.recording_sources.some(s=>s.body.recording_id===result.block_id&&s.body.original_asset_id));
  assert(await page.locator('[data-transcribe]').first().isDisabled());
  // Explicit test-only confirmation: no production user data is modified.
- await page.locator('[data-turn-confirm]').first().click();await page.waitForFunction(()=>!document.querySelector('[data-transcribe]').disabled);await page.locator('[data-transcribe]').first().click();
+ await page.locator('.chat-row-edit > summary').first().click();await page.locator('[data-turn-editor] summary').first().click(); await page.locator('[data-turn-confirm]').first().click();await page.waitForFunction(()=>!document.querySelector('[data-transcribe]').disabled);await page.locator('[data-transcribe]').first().click();
  await page.waitForFunction(()=>document.querySelector('#recording-status').textContent.includes('转写已保存'),{},{timeout:180000});
  state=await page.evaluate(()=>window.sayagain.state());assert(state.recording_clips.some(c=>c.body.recording_id===result.block_id&&c.body.transcript.length>0));
  await page.locator('#clip-speaker').selectOption('A');assert((await page.locator('.recording-clip').count())>0);await page.locator('#clip-speaker').selectOption('');
