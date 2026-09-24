@@ -1,5 +1,7 @@
 # HOTPOOR SayAgain
 
+<img src="renderer/assets/sayagain-wordmark.png" width="720" alt="SayAgain — by HOTPOOR XIALIWEI">
+
 **用自己的声音，把每句话说得更自然。**
 
 HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得改进的表达，用母语解释原因，再用自己的音色听一遍、跟读一遍。面向多种母语与目标语言组合，而不局限于英语。
@@ -56,6 +58,10 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 空间不足时明确提示无法安装本地 Qwen3-TTS，并提供千问AI平台云端入口。当前优先完成此设备的云端接入；用户填写 AK、启用云端后，确认发送选定参考录音和文本；也可在顶部语音设置中授权复用默认选择，之后手动点击生成时无需重复弹窗。无云端数据同步。详见[语音接入](docs/speech.md)。
 
 ## 桌面客户端与界面方向
+
+<img src="renderer/assets/sayagain-icon.png" width="112" height="112" alt="SayAgain 圆角应用图标：黑底白色双气泡 S">
+
+横向 LOGO 用于项目品牌展示，署名为 **by HOTPOOR XIALIWEI**；圆角矩形应用图标保留双气泡 S，已接入窗口图标与 macOS Dock。
 
 客户端采用 **Electron**。页面功能和内容展示以现有 Nexplay 线上版本为参考；桌面布局与视觉尽量参考 **Codex 和 ChatGPT 客户端**，保留 SayAgain 自己的品牌与语言练习流程。
 

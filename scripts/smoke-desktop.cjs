@@ -15,6 +15,8 @@ async function launch() {
 }
 (async()=>{
  let page=await launch();
+ assert(await page.locator('.brand-icon').evaluate(img=>img.complete&&img.naturalWidth>0));
+ assert.equal(await page.locator('.brand small').textContent(),'by HOTPOOR XIALIWEI');
  await page.locator('#language-form [name="native_language"]').fill('zh-CN');await page.locator('#language-form [name="target_language"]').fill('en-US');await page.locator('#language-form button[type="submit"]').click();
  await page.waitForSelector('[data-action="example"]');await page.locator('[data-action="example"]').click();await page.locator('#save-editor').click();await page.waitForSelector('.entry');
  assert.equal(await page.locator('.improved').textContent(),'I really like this idea.');

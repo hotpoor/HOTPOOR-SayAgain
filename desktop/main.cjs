@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell, clipboard, nativeImage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -14,12 +14,16 @@ if (process.env.SAYAGAIN_DATA_DIR) {
 protocol.registerSchemesAsPrivileged([{ scheme: 'sayagain-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 let win, service, bridge, speech, quitting=false;
 const pagePath = path.join(__dirname, '../renderer/index.html');
+const iconPath = path.join(__dirname, '../renderer/assets/sayagain-icon.png');
 const pageUrl = pathToFileURL(pagePath).href;
 const trusted = event => event.sender === win?.webContents && event.senderFrame === win.webContents.mainFrame && event.senderFrame.url === pageUrl;
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win?.isMinimized()) win.restore(); win?.focus(); });
   app.whenReady().then(async () => {
+    const brandIcon=nativeImage.createFromPath(iconPath);
+    if(!brandIcon.isEmpty()&&process.platform==='darwin')app.dock.setIcon(brandIcon);
+    app.setAboutPanelOptions({applicationName:'SayAgain',applicationVersion:app.getVersion(),credits:'Created by HOTPOOR XIALIWEI',iconPath});
     service = new Service(path.join(app.getPath('userData'), 'data'));
     const changed=()=>{if(win&&!win.isDestroyed())win.webContents.send('sayagain:data-changed');};
     bridge=await startBridge(service,app.getPath('userData'),changed);
@@ -84,7 +88,7 @@ else {
   }).catch(error => { dialog.showErrorBox('SayAgain 无法启动', error.message); app.quit(); });
 }
 async function createWindow() {
-  win = new BrowserWindow({ width: 1280, height: 880, minWidth: 620, minHeight: 540, title: 'HOTPOOR SayAgain', backgroundColor: '#ffffff', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default', webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  win = new BrowserWindow({ icon:iconPath, width: 1280, height: 880, minWidth: 620, minHeight: 540, title: 'HOTPOOR SayAgain', backgroundColor: '#ffffff', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default', webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.on('will-attach-webview', event => event.preventDefault());

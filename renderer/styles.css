@@ -100,26 +100,12 @@ small {
 }
 .brand small {
   display:block;
-  font-size:calc(9px * var(--font-scale, 1));
-  letter-spacing:2.1px;
+  font-size:calc(8px * var(--font-scale, 1));
+  letter-spacing:.35px;
   margin-top:4px;
   font-weight:500
 }
-.brand-symbol {
-  position:relative;
-  font-size:calc(39px * var(--font-scale, 1));
-  font-weight:650;
-  font-family:Georgia,serif;
-  line-height:1;
-  display:block;
-  width:33px
-}
-.brand-symbol span {
-  position:absolute;
-  font:19px system-ui;
-  top:-5px;
-  right:-2px
-}
+.brand-icon { width:40px; height:40px; object-fit:contain; flex:none; }
 .new-entry {
   display:flex;
   align-items:center;
