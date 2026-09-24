@@ -1,3 +1,4 @@
+const { normalizeCategory } = require('./categories.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
@@ -44,8 +45,7 @@ class Service {
   addExpression(input) {
     const original = str(input.original, '原句', 10000, true);
     const improved = str(input.improved, '建议表达', 10000, true);
-    const category = input.category || 'naturalness';
-    if (!['grammar', 'word_choice', 'naturalness', 'register', 'translation_practice'].includes(category)) throw new Error('未知类别');
+    const category = normalizeCategory(input.category ?? 'naturalness');
     const fields = {};
     for (const name of ['translation', 'explanation', 'pattern']) fields[name] = str(input[name] || '', name, 10000);
     const config = this.config().body;

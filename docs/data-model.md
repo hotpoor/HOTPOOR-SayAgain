@@ -78,7 +78,7 @@ DDL 见 `storage/index.sql`。设置和任务本体也放在 entities，不另�
 
 时间语义必须分开：turn.occurred_at 是原消息时间；entities.createtime 是记录入库时间；voice_sample.recorded_at 是录制时间（导入无法确定则 null）；archived_at 是归档时间。不要把创建记录时间冒充原录音时间。
 
-建议类别为 grammar / word_choice / naturalness / register / translation_practice。多语言用 BCP 47 标签；本地模型另有标签映射，不能拿 `en-US` 直接假定所有引擎都接受。source_span 统一为 Unicode code point 的半开区间，避免 JS UTF-16 与 Python 字符索引混淆。
+建议类别 category 为开放文字标签：去除首尾空白后 1–64 个 Unicode code point，不含控制或格式字符。Skill 按具体问题推理类别，优先用母语命名新类别；grammar / word_choice / naturalness / register / translation_practice 仅为兼容的常用示例，不是白名单。多语言用 BCP 47 标签；本地模型另有标签映射，不能拿 `en-US` 直接假定所有引擎都接受。source_span 统一为 Unicode code point 的半开区间，避免 JS UTF-16 与 Python 字符索引混淆。
 
 ## 关系与不变量
 

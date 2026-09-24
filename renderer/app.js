@@ -25,7 +25,8 @@ const labelLanguage = code => languages.find(item => item[0] === code)?.[1] || c
 const categories = { naturalness: '自然表达', grammar: '语法', word_choice: '用词', register: '语气与场合', translation_practice: '翻译练习' };
 const date = timestamp => new Date(timestamp).toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
 const duration = ms => { const s = Math.floor((ms || 0)/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
-let state, page = 'review', search = '', filter = 'active', pair = 'current', dialogMode, editing, toastTimer;
+let state, page = 'review', search = '', filter = 'active', pair = 'all', dialogMode, editing, toastTimer;
+try { const saved=localStorage.getItem('sayagain-review-language');if(saved)pair=saved; } catch {}
 let recording, microphone, recordingTimer, pendingAudio, previewUrl;
 let audioGeneration = 0;
 let player = null, playerSampleId = null, playerFrame = null, playerCleanup = null;
@@ -55,6 +56,9 @@ function stopPlayer() {
 }
 function render() {
   stopPlayer();
+  const speechLabel=state.speech.config.body.mode==='cloud'?state.speech.cloud_models.find(m=>m.id===state.speech.cloud_model)?.label:'本地 Qwen3-TTS';
+  $('#speech-defaults-label').textContent=speechLabel||'语音设置';
+  $('#speech-defaults').title='语音设置 · '+(speechLabel||'尚未配置')+(currentSpeechDefaults()?' · 直接生成':' · 生成前确认');
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
@@ -73,24 +77,34 @@ function renderOnboarding() {
 }
 function heading(kicker,title,description,button='') { return `<div class="page-heading"><div><div class="heading-kicker">${kicker}</div><h1>${title}</h1><p>${description}</p></div>${button}</div>`; }
 function renderReview() {
-  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选"><option value="current">当前语言对</option><option value="all">所有语言</option></select><span class="count-label" id="results-count"></span></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
-  $('#review-filter').value = filter; $('#pair-filter').value = pair;
+  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选" title="按语言对查看，句数随搜索和记录筛选更新"></select><span class="count-label" id="results-count"></span></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
+  $('#review-filter').value = filter;
   renderEntries();
 }
 function renderEntries() {
   stopPlayer();
   const config = state.config.body;
-  const entries = state.expressions.filter(({body:b}) => {
+  const languageKey = value => JSON.stringify([value.native_language,value.target_language]);
+  const currentKey=languageKey(config),pairs=new Map([[currentKey,{native_language:config.native_language,target_language:config.target_language}]]);
+  for(const {body:b} of state.expressions)pairs.set(languageKey(b.language_pair),b.language_pair);
+  // Browsing a saved language never changes the learning configuration.
+  if(pair==='current')pair=currentKey;
+  if(pair!=='all'&&!pairs.has(pair))pair='all';
+  const matching = state.expressions.filter(({body:b}) => {
     if (filter === 'archived' ? b.status !== 'archived' : b.status !== 'active') return false;
     if (filter === 'favorite' && !b.favorite) return false;
-    if (pair === 'current' && (b.language_pair.native_language !== config.native_language || b.language_pair.target_language !== config.target_language)) return false;
     return !search || [b.original,b.improved,b.translation,b.explanation,b.pattern].join(' ').toLocaleLowerCase().includes(search.toLocaleLowerCase());
   });
-  $('#results-count').textContent = `${entries.length} 条表达`;
+  const counts=new Map();for(const {body:b} of matching){const key=languageKey(b.language_pair);counts.set(key,(counts.get(key)||0)+1);}
+  $('#pair-filter').innerHTML=`<option value="all">所有语言（${matching.length} 句）</option>`+Array.from(pairs).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>`<option value="${escapeHtml(key)}">${escapeHtml(labelLanguage(value.native_language))} → ${escapeHtml(labelLanguage(value.target_language))}（${counts.get(key)||0} 句）${key===currentKey?' · 当前学习':''}</option>`).join('');
+  $('#pair-filter').value=pair;
+  const entries=matching.filter(({body:b})=>pair==='all'||languageKey(b.language_pair)===pair);
+  $('#results-count').textContent = `显示 ${entries.length} 句 · 总计 ${state.expressions.length} 句`;
+  $('#results-count').title='显示数量受搜索、收藏、归档和语言筛选影响；总计包含所有语言及已归档表达';
   if (!entries.length) {
     $('#entries').innerHTML = `<section class="empty"><div class="empty-symbol">${icon('messages')}</div><h2>${state.expressions.length ? '这里还没有符合条件的表达' : '让下一次表达，更像你。'}</h2><p>${state.expressions.length ? '换一个关键词或筛选条件，找回想练习的那句话。' : '记下一句想说得更好的话，留下建议和原因。你的个人表达库，从这里开始。'}</p><div class="empty-actions"><button class="button primary" data-action="add-expression">记录第一句</button>${!state.expressions.length && config.native_language.startsWith('zh') && config.target_language.startsWith('en') ? '<button class="button" data-action="example">填入一条示例</button>' : ''}</div></section>`; return;
   }
-  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${categories[b.category] || '表达'}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button><span class="tag">${b.source==='skill'?'Skill 评估':'手动记录'}</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}${synthesisMarkup(id)}</div></article>`).join('');
+  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${escapeHtml(Object.hasOwn(categories,b.category)?categories[b.category]:(b.category||'表达'))}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button><span class="tag">${b.source==='skill'?'Skill 评估':'手动记录'}</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}${synthesisMarkup(id)}</div></article>`).join('');
 }
 function renderVoices() {
   stopPlayer();
@@ -161,6 +175,36 @@ function initModelScroll() {
   modelScrollObserver.observe(list);update();
  });
 }
+// Consent is scoped to the exact saved configuration and reference sample.
+function readSpeechDefaults(){try{return JSON.parse(localStorage.getItem('sayagain-speech-defaults'));}catch{return null;}}
+function speechDefaultsSignature(voiceId,model){
+ const voice=state.voices.find(v=>v.block_id===voiceId&&v.body.status==='active');
+ const sample=state.samples.find(s=>s.block_id===voice?.body.default_sample_id);
+ if(!voice||!sample)return null;
+ return JSON.stringify([state.speech.config.body.mode,state.speech.config.body.revision,model,voiceId,voice.body.voice_revision,sample.block_id,sample.body.revision,sample.body.asset_id,state.speech.local.revision]);
+}
+function currentSpeechDefaults(){
+ const saved=readSpeechDefaults(),model=state.speech.config.body.mode==='cloud'?state.speech.cloud_model:state.speech.local.model_id;
+ return saved&&saved.model_id===model&&saved.signature===speechDefaultsSignature(saved.voice_id,model)?saved:null;
+}
+function rememberSpeechDefaults(values){
+ if(values.reuse_defaults!=='on'){localStorage.removeItem('sayagain-speech-defaults');return;}
+ const cloud=state.speech.config.body.mode==='cloud',model=cloud?state.speech.cloud_model:state.speech.local.model_id;
+ if(cloud&&values.cloud_consent!=='on')throw new Error('请确认云端使用授权');
+ const signature=speechDefaultsSignature(values.voice_id,model);
+ if(!signature)throw new Error('请选择有效音色和默认参考录音');
+ localStorage.setItem('sayagain-speech-defaults',JSON.stringify({voice_id:values.voice_id,model_id:model,signature,cloud_consent:cloud}));
+}
+async function generateWithDefaults(id,button){
+ if(button.disabled)return;
+ button.disabled=true;
+ try{
+ state=await api.state();
+ const saved=currentSpeechDefaults();
+ if(!saved){openDialog('synthesis',id);return;}
+ await api.synthesize({expression_id:id,voice_id:saved.voice_id,model_id:saved.model_id,cloud_consent:saved.cloud_consent});await refresh();notify('已使用默认设置生成语音');}
+ finally{button.disabled=false;}
+}
 function synthesisMarkup(expressionId) {
   const items=state.syntheses.filter(s=>s.body.expression_id===expressionId);
   const labels={queued:'等待生成',running:'正在生成',failed:'生成失败',cancelled:'已取消',succeeded:'已生成'};
@@ -177,20 +221,24 @@ function openDialog(mode, id, example=false) {
   $('#form-error').textContent = ''; $('#save-editor').disabled = false; $('#save-editor').textContent = '保存';
   if (mode === 'expression') {
     $('#dialog-title').textContent = example ? '试着记录一条示例' : '记录一句话';
-    $('#editor-fields').innerHTML = `<p class="form-hint">保存你整理好的表达建议；这里不会自动调用模型。当前语言：${escapeHtml(state.config.body.native_language)} → ${escapeHtml(state.config.body.target_language)}</p>${field('original','当时的表达',example ? 'I very like this idea.' : '', 'required maxlength="10000"')}${field('improved','可以这样说',example ? 'I really like this idea.' : '', 'required maxlength="10000"')}${field('translation','母语译文',example ? '我很喜欢这个想法。' : '')}<label class="field">类别<select name="category">${Object.entries(categories).map(([key,value]) => `<option value="${key}">${value}</option>`).join('')}</select></label>${field('explanation','修改原因',example ? 'really 可以修饰动词 like，very 通常修饰形容词或副词。' : '')}${field('pattern','可复用句型',example ? 'I really like + 名词 / 动名词.' : '')}`;
+    $('#editor-fields').innerHTML = `<p class="form-hint">保存你整理好的表达建议；这里不会自动调用模型。当前语言：${escapeHtml(state.config.body.native_language)} → ${escapeHtml(state.config.body.target_language)}</p>${field('original','当时的表达',example ? 'I very like this idea.' : '', 'required maxlength="10000"')}${field('improved','可以这样说',example ? 'I really like this idea.' : '', 'required maxlength="10000"')}${field('translation','母语译文',example ? '我很喜欢这个想法。' : '')}<label class="field">类别标签（可自定义）<input name="category" list="category-suggestions" required value="自然表达" placeholder="选择常用类别，或填写具体问题"><datalist id="category-suggestions">${Array.from(new Set([...Object.values(categories),...state.expressions.map(e=>Object.hasOwn(categories,e.body.category)?categories[e.body.category]:e.body.category).filter(Boolean)])).map(value=>`<option value="${escapeHtml(value)}"></option>`).join('')}</datalist></label>${field('explanation','修改原因',example ? 'really 可以修饰动词 like，very 通常修饰形容词或副词。' : '')}${field('pattern','可复用句型',example ? 'I really like + 名词 / 动名词.' : '')}`;
   } else if (mode === 'voice') {
     const voice = state.voices.find(v => v.block_id === id)?.body;
     $('#dialog-title').textContent = voice ? '编辑音色' : '新建音色';
     $('#editor-fields').innerHTML = `<label class="field">音色名称<input name="name" required maxlength="120" placeholder="例如：我的日常声音" value="${escapeHtml(voice?.name || '')}"></label>${field('note','备注',voice?.note || '', 'maxlength="2000"')}<p class="form-hint">先给声音起个名字，再添加录音。可以录制多次并保留各自的创建日期。</p>`;
-  } else if (mode === 'synthesis') {
+  } else if (mode === 'synthesis' || mode === 'speech-defaults') {
     if((state.speech.config.body.mode==='local'&&(!state.speech.local.space_ok||!state.speech.local.installed))&&!state.speech.has_api_key){page='settings';render();$('#local-model').scrollIntoView({behavior:'smooth'});notify('本地模型尚未就绪，请让 SayAgain Skill 检查和配置；也可自行选择云端模式');return;}
+    const defaultsOnly=mode==='speech-defaults';
     const expression=state.expressions.find(e=>e.block_id===id), cloud=state.speech.config.body.mode==='cloud';
     const voices=state.voices.filter(v=>v.body.status==='active'&&v.body.default_sample_id);
     const model=cloud?state.speech.cloud_model:state.speech.local.model_id;
-    $('#dialog-title').textContent=cloud?'使用千问AI平台生成':'使用本地 Qwen3-TTS 生成';
-    $('#editor-fields').innerHTML=`<p class="synthesis-text" dir="auto">${escapeHtml(expression.body.improved)}</p>${cloud?`${modelPicker('model_id',model)}<label class="checkbox"><input type="checkbox" name="set_default_model">同时设为默认模型</label>`:`<div class="synthesis-model">本次模型 · <span>${escapeHtml(model)}</span></div>`}<fieldset class="choice-field"><legend>我的音色</legend><div class="voice-choices">${voices.map((v,i)=>`<label class="model-choice"><input type="radio" name="voice_id" value="${v.block_id}" ${i===0?'checked':''} required><span class="choice-mark" aria-hidden="true"></span><span>${escapeHtml(v.body.name)}</span></label>`).join('')}</div></fieldset><p class="form-hint">将使用所选音色的默认样本。${cloud?'需要 10–60 秒参考录音，建议 10–20 秒；按平台计费。':'录音与文字均在本机处理。'}</p>${cloud?'<label class="checkbox"><input type="checkbox" name="cloud_consent" required>同意将所选音色的默认参考录音和上方文字发送到千问AI平台进行克隆与合成。</label>':''}${!voices.length?'<p class="form-error">请先在「我的音色」中创建音色并添加录音。</p>':''}`;
-    const defaultVoice=state.config.body.default_voice_ids[0];if(voices.some(v=>v.block_id===defaultVoice))$('#editor [name="voice_id"]').value=defaultVoice;
-    $('#save-editor').textContent='开始生成';$('#save-editor').disabled=!voices.length;
+    $('#dialog-title').textContent=defaultsOnly?'默认语音设置':cloud?'使用千问AI平台生成':'使用本地 Qwen3-TTS 生成';
+    $('#editor-fields').innerHTML=`${defaultsOnly?'<p class="form-hint">保存默认模型与音色；点击「生成语音」时使用这些设置。</p>':`<p class="synthesis-text" dir="auto">${escapeHtml(expression.body.improved)}</p>`}${cloud?`${modelPicker(defaultsOnly?'cloud_model':'model_id',model)}${defaultsOnly?'':`<label class="checkbox"><input type="checkbox" name="set_default_model">同时设为默认模型</label>`}`:`<div class="synthesis-model">本次模型 · <span>${escapeHtml(model)}</span></div>`}<fieldset class="choice-field"><legend>我的音色</legend><div class="voice-choices">${voices.map((v,i)=>`<label class="model-choice"><input type="radio" name="voice_id" value="${v.block_id}" ${i===0?'checked':''} required><span class="choice-mark" aria-hidden="true"></span><span>${escapeHtml(v.body.name)}</span></label>`).join('')}</div></fieldset><p class="form-hint">将使用所选音色的默认样本。${cloud?'需要 10–60 秒参考录音，建议 10–20 秒；按平台计费。':'录音与文字均在本机处理。'}</p>${cloud?'<label class="checkbox"><input type="checkbox" name="cloud_consent" required>同意将所选参考录音和待生成文字发送到千问AI平台；若启用直接生成，此授权用于之后手动点击的生成请求，按平台计费。</label>':''}<label class="checkbox"><input type="checkbox" name="reuse_defaults">以后使用这些设置直接生成</label><p class="form-hint">可随时在顶部「语音设置」关闭；更换模型、音色或参考录音后需重新确认。</p>${!voices.length?'<p class="form-error">请先在「我的音色」中创建音色并添加录音。</p>':''}`;
+    if(defaultsOnly&&cloud)$('#editor [name="cloud_consent"]').required=false;
+    const saved=currentSpeechDefaults(),defaultVoice=saved?.voice_id||state.config.body.default_voice_ids[0];
+    const voiceInput=Array.from(editor.querySelectorAll('[name="voice_id"]')).find(input=>input.value===defaultVoice);if(voiceInput)voiceInput.checked=true;
+    if(saved){$('#editor [name="reuse_defaults"]').checked=true;const consent=$('#editor [name="cloud_consent"]');if(consent){consent.checked=saved.cloud_consent;consent.required=true;}}
+    $('#save-editor').textContent=defaultsOnly?'保存默认设置':'开始生成';$('#save-editor').disabled=!voices.length;
   } else if (mode === 'sample') {
     $('#dialog-title').textContent = '添加参考录音';
     $('#editor-fields').innerHTML = `${recorderMarkup(state.config.body.native_language)}${languageField('language','录音所用语言',state.config.body.native_language)}${languageOptions()}${field('transcript','录音原文（可选）','', 'maxlength="10000"')}<p class="form-hint" id="audio-info">支持导入音频，最长 10 分钟、25 MB。</p>`;
@@ -316,7 +364,8 @@ document.addEventListener('click', async event => {
         const input=button.closest('.key-input').querySelector('input'),show=input.type==='password';input.type=show?'text':'password';button.innerHTML=icon(show?'eyeOff':'eye');button.setAttribute('aria-label',show?'隐藏 API Key':'显示 API Key');button.title=button.getAttribute('aria-label');button.setAttribute('aria-pressed',String(show));break;
       }
       case 'clear-api-key': await api.clearApiKey();await refresh();notify('密钥已移除，云端已关闭');break;
-      case 'synthesize': openDialog('synthesis',id);break;
+      case 'speech-defaults': openDialog('speech-defaults');break;
+      case 'synthesize': await generateWithDefaults(id,button);break;
       case 'cancel-synthesis': await api.cancelSynthesis({id});await refresh();break;
       case 'fullscreen': await api.fullscreen(); break;
       case 'add-expression': openDialog('expression'); break;
@@ -359,8 +408,10 @@ document.addEventListener('input',async event=>{
   }
 });
 document.addEventListener('change', async event=>{
+  if(dialogMode==='speech-defaults'&&event.target.matches('#editor [name="reuse_defaults"]')){const consent=$('#editor [name="cloud_consent"]');if(consent)consent.required=event.target.checked;}
+  if(event.target.closest('#editor')&&event.target.matches('[name="model_id"], [name="cloud_model"], [name="voice_id"]')){const consent=$('#editor [name="cloud_consent"]');if(consent)consent.checked=false;}
   if(event.target.id==='review-filter'){filter=event.target.value;renderEntries();}
-  if(event.target.id==='pair-filter'){pair=event.target.value;renderEntries();}
+  if(event.target.id==='pair-filter'){pair=event.target.value;try{localStorage.setItem('sayagain-review-language',pair);}catch{}renderEntries();}
   if(event.target.id==='voice-filter'){filter=event.target.value;renderVoices();}
   if(event.target.id==='audio-file' && event.target.files[0]) try{await prepareAudio(event.target.files[0],'import');}catch(error){$('#form-error').textContent=errorMessage(error);}
 });
@@ -371,7 +422,14 @@ document.addEventListener('submit',async event=>{
     if(form.id==='language-form') { await api.saveSettings({...values,revision:state.config.body.revision}); await refresh();notify('语言设置已保存'); }
     if(form.id==='speech-form'){const keys=Array.from(form.querySelectorAll('.api-key-row')).map(row=>({id:row.dataset.keyId,name:row.querySelector('.key-name').value,key:row.querySelector('.key-value').value}));await api.speechSettings({...values,keys,cloud_enabled:values.cloud_enabled==='on'});form.reset();await refresh();notify('语音设置已保存');}
     if(form.id==='editor-form') {
-      if(dialogMode==='synthesis')await api.synthesize({expression_id:editing,voice_id:values.voice_id,model_id:values.model_id,set_default_model:values.set_default_model==='on',cloud_consent:values.cloud_consent==='on'});
+      if(dialogMode==='speech-defaults'){
+        await api.speechSettings({mode:state.speech.config.body.mode,cloud_enabled:state.speech.config.body.cloud_enabled,cloud_model:values.cloud_model||state.speech.cloud_model});
+        state=await api.state();rememberSpeechDefaults(values);
+      }
+      if(dialogMode==='synthesis'){
+        await api.synthesize({expression_id:editing,voice_id:values.voice_id,model_id:values.model_id,set_default_model:values.set_default_model==='on'||values.reuse_defaults==='on',cloud_consent:values.cloud_consent==='on'});
+        state=await api.state();rememberSpeechDefaults(values);
+      }
       if(dialogMode==='expression') await api.addExpression(values);
       if(dialogMode==='voice') await api.saveVoice({...values,id:editing,revision:state.voices.find(v=>v.block_id===editing)?.body.revision});
       if(dialogMode==='sample') { buildClip();if(!pendingAudio) throw new Error('请先录制或导入音频');await api.addSample({...values,...pendingAudio,voice_id:editing}); }

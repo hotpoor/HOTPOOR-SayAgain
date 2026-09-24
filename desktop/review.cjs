@@ -1,3 +1,4 @@
+const { normalizeCategory } = require('./categories.cjs');
 const { createHash } = require('node:crypto');
 const { newId } = require('../storage/store.cjs');
 const hash = value => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
@@ -16,7 +17,7 @@ function installReview(Service) {
   Service.prototype.integration = function() {return this.store.list('integration')[0];};
   Service.prototype.reviewContext = function() {
     const config=this.config();
-    return {enabled:!!this.integration()?.body.enabled,config:{id:config.block_id,revision:config.body.revision,native_language:config.body.native_language,target_language:config.body.target_language,onboarding_complete:config.body.onboarding_complete},policy_version:1};
+    return {enabled:!!this.integration()?.body.enabled,config:{id:config.block_id,revision:config.body.revision,native_language:config.body.native_language,target_language:config.body.target_language,onboarding_complete:config.body.onboarding_complete},policy_version:1,category_policy:{type:'open_text',max_length:64}};
   };
   Service.prototype.setIntegration = function(input) {
     if(typeof input.enabled!=='boolean')throw new Error('启用状态无效');
@@ -51,9 +52,9 @@ function installReview(Service) {
       if(chars.slice(span.start,span.end).join('')!==quote)throw new Error('原句与来源片段不匹配');
       const improved=text(item.improved,'improved',10000);
       if(!improved.trim()||quote===improved)throw new Error('建议表达应有明确改进');
-      if(!['grammar','word_choice','naturalness','register','translation_practice'].includes(item.category))throw new Error('建议类别无效');
+      const category=normalizeCategory(item.category);
       if(typeof item.confidence!=='number'||item.confidence<0||item.confidence>1||!Number.isFinite(item.confidence))throw new Error('置信度无效');
-      return{original:quote,improved,source_span:span,category:item.category,confidence:item.confidence,translation:text(item.translation||'','translation',10000),explanation:text(item.explanation,'explanation',10000),pattern:text(item.pattern||'','pattern',10000)};
+      return{original:quote,improved,source_span:span,category,confidence:item.confidence,translation:text(item.translation||'','translation',10000),explanation:text(item.explanation,'explanation',10000),pattern:text(item.pattern||'','pattern',10000)};
     });
     return this.store.transaction(()=>{
       const evaluationId=newId(),turnId=newId();
