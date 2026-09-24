@@ -1,0 +1,14 @@
+// Original reading prompts, selected by the learner's native language.
+const readingPrompts = {
+  zh: '清晨，我推开窗，看见阳光落在树叶上。街道渐渐热闹起来，有人出门散步，有人准备开始一天的工作。我想放慢一点脚步，认真听一听身边的声音。生活中总有值得发现的小事，也总有值得好好说出口的话。',
+  en: 'In the morning, I open the window and watch the sunlight fall across the trees. The street slowly comes to life. Some people are out for a walk, while others are beginning their work. I take a quiet moment to listen. There is always something new to notice, and something worth sharing in our own words.',
+  ja: '朝、窓を開けると、木の葉にやわらかな光が差していました。通りには少しずつ人が増え、散歩をする人や、仕事へ向かう人の姿が見えます。私は少し足を止めて、周りの音に耳を澄ませました。毎日の暮らしの中には、小さな発見と、自分の言葉で伝えたいことがあります。',
+  ko: '아침에 창문을 열자 나뭇잎 위로 따뜻한 햇살이 내려앉았습니다. 거리에는 산책하는 사람들과 하루의 일을 시작하는 사람들이 하나둘 나타났습니다. 저는 잠시 걸음을 늦추고 주변의 소리에 귀를 기울였습니다. 평범한 하루에도 새롭게 발견할 것과 내 말로 전하고 싶은 이야기가 있습니다.',
+  fr: 'Le matin, j’ouvre la fenêtre et je regarde la lumière sur les arbres. La rue s’anime doucement. Certains se promènent, d’autres commencent leur journée de travail. Je prends un moment pour écouter les sons autour de moi. Chaque jour nous offre de petites découvertes et des histoires à raconter avec nos propres mots.',
+  de: 'Am Morgen öffne ich das Fenster und sehe, wie das Sonnenlicht auf die Bäume fällt. Langsam wird die Straße lebendig. Manche Menschen gehen spazieren, andere beginnen ihre Arbeit. Ich nehme mir einen Moment Zeit und höre zu. Jeder Tag bietet kleine Entdeckungen und Geschichten, die wir mit unseren eigenen Worten erzählen können.',
+  es: 'Por la mañana abro la ventana y miro la luz sobre los árboles. Poco a poco, la calle se llena de vida. Algunas personas salen a caminar y otras empiezan a trabajar. Me detengo un momento para escuchar. Cada día nos ofrece pequeños descubrimientos y algo que merece ser contado con nuestras propias palabras.',
+  it: 'Al mattino apro la finestra e osservo la luce sugli alberi. La strada si anima poco a poco. Alcuni escono a passeggiare, altri cominciano a lavorare. Mi fermo un momento ad ascoltare. Ogni giorno ci offre piccole scoperte e qualcosa che vale la pena raccontare con le nostre parole.',
+  pt: 'De manhã, abro a janela e observo a luz sobre as árvores. Aos poucos, a rua ganha vida. Algumas pessoas saem para caminhar, outras começam a trabalhar. Paro por um momento para ouvir os sons ao meu redor. Cada dia nos oferece pequenas descobertas e algo que merece ser contado com nossas próprias palavras.',
+  ru: 'Утром я открываю окно и смотрю, как солнечный свет ложится на деревья. Улица постепенно оживает. Кто-то выходит на прогулку, а кто-то начинает рабочий день. Я останавливаюсь на минуту и прислушиваюсь. Каждый день дарит нам маленькие открытия и истории, которыми хочется поделиться своими словами.',
+  ar: 'في الصباح أفتح النافذة وأرى ضوء الشمس على أوراق الأشجار. يبدأ الشارع بالحركة شيئًا فشيئًا. يخرج بعض الناس للمشي، ويبدأ آخرون يوم عملهم. أتوقف لحظة وأستمع إلى الأصوات من حولي. في كل يوم أشياء صغيرة تستحق أن نكتشفها، وحكايات تستحق أن نرويها بكلماتنا.'
+};

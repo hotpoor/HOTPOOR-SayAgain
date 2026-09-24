@@ -2,6 +2,7 @@ const api = window.sayagain;
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const paths = {
+  upload:'M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6',
   info:'M12 8h.01M12 11v6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
   messages:'M4 4h16v12H9l-5 4V4Z', wave:'M3 10v4m4-8v12m5-16v20m5-16v12m4-8v4',
   settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3Zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
@@ -132,12 +133,13 @@ function openDialog(mode, id, example=false) {
     $('#save-editor').textContent='开始生成';$('#save-editor').disabled=!voices.length;
   } else if (mode === 'sample') {
     $('#dialog-title').textContent = '添加参考录音';
-    $('#editor-fields').innerHTML = `<p class="form-hint">录制自己的声音，或导入已有录音。每段不超过 10 分钟、25 MB。导入文件不会被移动或修改。</p><div class="record-controls"><button type="button" class="button" data-action="record" id="record-button">开始录音</button><span class="record-status" id="record-status">麦克风尚未开启</span></div><label class="field">或导入音频<input id="audio-file" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,.wav,.mp3,.m4a,.ogg,.webm"></label><audio class="audio-preview" id="audio-preview" controls hidden></audio>${languageField('language','录音所用语言',state.config.body.native_language)}${languageOptions()}${field('transcript','录音原文（可选）','', 'maxlength="10000"')}<p class="form-hint" id="audio-info">尚未选择音频</p>`;
+    $('#editor-fields').innerHTML = `${recorderMarkup(state.config.body.native_language)}${languageField('language','录音所用语言',state.config.body.native_language)}${languageOptions()}${field('transcript','录音原文（可选）','', 'maxlength="10000"')}<p class="form-hint" id="audio-info">支持导入音频，最长 10 分钟、25 MB。</p>`;
     $('#save-editor').disabled = true;
   }
   editor.showModal();
 }
 function cleanupRecording() {
+  resetClip();
   audioGeneration++;
   clearInterval(recordingTimer);
   if (recording) { recording.onstop = null; if (recording.state !== 'inactive') recording.stop(); }
@@ -150,35 +152,16 @@ function cleanupRecording() {
 async function prepareAudio(file, source) {
   const generation = ++audioGeneration;
   if (file.size > 25*1024*1024) throw new Error('录音不能超过 25 MB');
-  $('#save-editor').disabled = true; pendingAudio = null;
+  $('#save-editor').disabled = true; pendingAudio = null; clipBuffer=null; $('#clip-editor').hidden=true; $('#audio-preview').pause();
   const bytes = await file.arrayBuffer();
   const context = new AudioContext();
   let decoded;
   try { decoded = await context.decodeAudioData(bytes.slice(0)); } catch { throw new Error('无法解码此录音，请选择 WAV、MP3、M4A、OGG 或 WebM 音频'); } finally { await context.close(); }
   if (!decoded.duration || decoded.duration > 600) throw new Error('录音时长需在 10 分钟以内');
-  const waveform = Array.from({length:64}, (_,i) => {
-    const start = Math.floor(decoded.length*i/64), end = Math.floor(decoded.length*(i+1)/64);
-    let peak = 0;
-    for (let channel=0; channel<decoded.numberOfChannels; channel++) {
-      const values = decoded.getChannelData(channel);
-      for (let j=start;j<end;j+=Math.max(1,Math.floor((end-start)/1500))) peak = Math.max(peak,Math.abs(values[j]));
-    }
-    return Math.min(1,peak);
-  });
-  const max = Math.max(...waveform,0.01);
   if (!editor.open || dialogMode !== 'sample' || generation !== audioGeneration) return;
-  let mime = file.type.split(';')[0];
-  if (mime === 'audio/x-wav') mime = 'audio/wav';
-  if (mime === 'audio/x-m4a') mime = 'audio/mp4';
-  if (!mime) mime = {wav:'audio/wav',mp3:'audio/mpeg',m4a:'audio/mp4',ogg:'audio/ogg',webm:'audio/webm'}[file.name?.split('.').at(-1).toLowerCase()] || '';
-  const wav = encodeWav(decoded);
-  pendingAudio = { bytes:wav, media_type:'audio/wav', duration_ms:decoded.duration*1000, waveform:waveform.map(v=>v/max), source };
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
-  $('#audio-preview').src = previewUrl; $('#audio-preview').hidden = false;
-  $('#audio-info').textContent = `${duration(pendingAudio.duration_ms)} · ${(bytes.byteLength/1024/1024).toFixed(2)} MB · 已准备好保存`;
-  $('#save-editor').disabled = false;
+  setupClip(decoded,source);
 }
+
 function encodeWav(decoded) {
   const bytes=new Uint8Array(44+decoded.length*2),view=new DataView(bytes.buffer);
   const write=(offset,value)=>{for(let i=0;i<value.length;i++)bytes[offset+i]=value.charCodeAt(i);};
@@ -190,23 +173,25 @@ function encodeWav(decoded) {
 async function toggleRecording() {
   if (recording?.state === 'recording') { recording.stop(); return; }
   const generation = ++audioGeneration;
-  pendingAudio = null; $('#save-editor').disabled = true; $('#record-button').disabled = true;
+  $('.record-studio').classList.remove('has-clip'); pendingAudio = null; clipBuffer=null; $('#audio-preview').pause(); $('#clip-editor').hidden=true; $('#save-editor').disabled = true; $('#record-button').disabled = true;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
     if (!editor.open || generation !== audioGeneration) { stream.getTracks().forEach(t=>t.stop()); return; }
     microphone = stream;
+    await startLiveWave(stream);
+    if (!editor.open || generation !== audioGeneration) { stopLiveWave(); stream.getTracks().forEach(t=>t.stop()); return; }
     const chunks = []; recording = new MediaRecorder(microphone, {mimeType:'audio/webm;codecs=opus'});
     let size = 0;
     recording.ondataavailable = event => { chunks.push(event.data); size += event.data.size; if (size > 24*1024*1024 && recording?.state === 'recording') recording.stop(); };
     recording.onstop = async () => {
-      clearInterval(recordingTimer); microphone?.getTracks().forEach(t=>t.stop()); microphone = null;
-      $('#record-button').textContent = '重新录音'; $('#record-status').textContent = '录音已停止'; $('#record-status').classList.remove('recording'); $('#audio-file').disabled = false;
+      stopLiveWave(); clearInterval(recordingTimer); microphone?.getTracks().forEach(t=>t.stop()); microphone = null;
+      $('#record-button').textContent = '重新录音'; $('#record-status').textContent = '录音已停止'; $('#record-status').classList.remove('recording'); $('#audio-file').disabled = false; $('#import-button').disabled=false;
       try { await prepareAudio(new Blob(chunks,{type:'audio/webm'}),'microphone'); } catch (e) { $('#form-error').textContent = errorMessage(e); }
     };
     recording.start(1000); const started = Date.now();
-    $('#record-button').textContent = '停止录音'; $('#record-status').classList.add('recording'); $('#audio-file').disabled = true;
-    recordingTimer = setInterval(() => { const elapsed=Date.now()-started; $('#record-status').textContent=`正在录音 ${duration(elapsed)}`; if(elapsed>=590000 && recording?.state==='recording') recording.stop(); },250);
-  } finally { if ($('#record-button')) $('#record-button').disabled = false; }
+    $('#record-button').textContent = '停止录音'; $('#record-status').classList.add('recording'); $('#audio-file').disabled = true; $('#import-button').disabled=true;
+    recordingTimer = setInterval(() => { const elapsed=Date.now()-started; $('#record-status').textContent='正在聆听…'; $('#live-time').textContent=duration(elapsed); if(elapsed>=590000 && recording?.state==='recording') recording.stop(); },250);
+  } catch(error) { stopLiveWave();microphone?.getTracks().forEach(t=>t.stop());microphone=null;throw error; } finally { if ($('#record-button')) $('#record-button').disabled = false; }
 }
 async function playSample(id) {
   const sample = [...state.samples,...state.syntheses].find(s=>s.block_id === id);
@@ -254,6 +239,10 @@ document.addEventListener('click', async event => {
       case 'edit-voice': openDialog('voice',id); break;
       case 'add-sample': openDialog('sample',id); break;
       case 'close-dialog': editor.close(); break;
+      case 'import-audio': $('#audio-file').click();break;
+      case 'use-reading': $('#editor [name="transcript"]').value=readingPrompts[state.config.body.native_language.split('-')[0]]||'';$('#editor [name="language"]').value=state.config.body.native_language;notify('已填入朗读原文，请按文案录制');break;
+      case 'reset-trim': if(clipBuffer){trimStart=0;trimEnd=clipBuffer.duration;updateTrim();}break;
+      case 'preview-clip': {const audio=$('#audio-preview');if(audio.paused){if(audio.currentTime<trimStart||audio.currentTime>=trimEnd)audio.currentTime=trimStart;await audio.play();}else audio.pause();break;}
       case 'record': await toggleRecording(); break;
       case 'favorite': case 'archive-expression': {
         const record=state.expressions.find(e=>e.block_id===id);
@@ -271,6 +260,7 @@ document.addEventListener('click', async event => {
   } catch(error) { if(editor.open) $('#form-error').textContent=errorMessage(error);else notify(errorMessage(error)); }
 });
 document.addEventListener('input',async event=>{
+  if(['trim-start','trim-end'].includes(event.target.id))updateTrim(event.target.id);
   if(event.target.id==='search'){search=event.target.value;renderEntries();}
   if(event.target.dataset.seek) {
     const id = event.target.dataset.seek, fraction = Number(event.target.value)/1000;
@@ -293,7 +283,7 @@ document.addEventListener('submit',async event=>{
       if(dialogMode==='synthesis')await api.synthesize({expression_id:editing,voice_id:values.voice_id,cloud_consent:values.cloud_consent==='on'});
       if(dialogMode==='expression') await api.addExpression(values);
       if(dialogMode==='voice') await api.saveVoice({...values,id:editing,revision:state.voices.find(v=>v.block_id===editing)?.body.revision});
-      if(dialogMode==='sample') { if(!pendingAudio) throw new Error('请先录制或导入音频');await api.addSample({...values,...pendingAudio,voice_id:editing}); }
+      if(dialogMode==='sample') { buildClip();if(!pendingAudio) throw new Error('请先录制或导入音频');await api.addSample({...values,...pendingAudio,voice_id:editing}); }
       editor.close(); await refresh();notify('已保存到本地');
     }
   }catch(error){form.querySelector('.form-error').textContent=errorMessage(error);}finally{submit.disabled=false;}
