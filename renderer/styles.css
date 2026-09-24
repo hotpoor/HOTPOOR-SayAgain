@@ -1229,3 +1229,8 @@ dialog { overflow:hidden; }
 .source-scroll-rail output{font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums}
 .source-scroll-footer{padding:7px 14px;text-align:right;color:var(--muted);font-size:10px;border-top:1px solid #eeeff0}
 @media(max-width:760px){.reader-viewbar{flex-wrap:wrap}.reader-height-control input{width:60px}.source-scroll-rail{width:30px}}
+
+.source-scroll-footer[data-height-drag]{position:relative;display:flex;justify-content:flex-end;align-items:center;min-height:30px;padding:7px 14px;cursor:ns-resize;touch-action:none;user-select:none;box-sizing:border-box}
+.source-height-grip{position:absolute;left:50%;top:50%;width:32px;height:5px;transform:translate(-50%,-50%);border-top:1px solid #a9adb2;border-bottom:1px solid #a9adb2;pointer-events:none}
+.source-scroll-footer[data-height-drag]:hover,.source-scroll-footer.is-resizing{background:#f3f4f5}
+.source-scroll-footer[data-height-drag]:focus-visible{outline:2px solid #7b838e;outline-offset:-2px}

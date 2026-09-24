@@ -28,6 +28,11 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
  assert(await viewport.evaluate(el=>Math.abs(el.scrollHeight-el.clientHeight-el.scrollTop)<2));assert.match(await page.locator('[data-scroll-range]').innerText(),/43 条/);
  await page.locator('[data-scroll-top]').click();assert.equal(await viewport.evaluate(el=>el.scrollTop),0);
  await page.getByLabel('列表高度（像素）').fill('340');await page.getByLabel('列表高度（像素）').press('Tab');assert.equal(Math.round((await viewport.boundingBox()).height),340);
+ const handle=page.getByRole('separator',{name:'拖动调整列表高度'});await handle.scrollIntoViewIfNeeded();const grip=await handle.boundingBox();
+ await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);await page.mouse.down();await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2-80,{steps:8});await page.mouse.up();
+ assert.equal(Math.round((await viewport.boundingBox()).height),260);assert.equal(await page.getByLabel('列表高度（像素）').inputValue(),'260');
+ await handle.press('ArrowDown');assert.equal(Math.round((await viewport.boundingBox()).height),280);await handle.press('ArrowDown');await handle.press('ArrowDown');await handle.press('ArrowDown');
+ assert.equal(await handle.getAttribute('aria-valuenow'),'340');
  assert.match(await page.locator('.chat-range').first().innerText(),/00:00:01.574 – 00:00:02.574/);assert.equal(await page.locator('.chat-transcript').first().isVisible(),true);
  await page.locator('.reader-people-button').click();await page.locator('.speaker-card summary').first().click();await page.getByLabel('A 备注名',{exact:true}).fill('主持人');await page.getByLabel('A 备注',{exact:true}).fill('负责提问与串场');await page.locator('[data-speaker-form="A"] button[type=submit]').click();await page.waitForFunction(()=>document.querySelector('.chat-meta strong')?.textContent==='主持人');
  assert.match(await page.locator('.speaker-card').first().textContent(),/负责提问/);assert.equal(await page.locator('#clip-speaker option[value="A"]').innerText(),'主持人');assert.equal(await page.locator('.chat-message').count(),43);assert.match(await page.locator('.chat-meta').first().textContent(),/主持人/);
