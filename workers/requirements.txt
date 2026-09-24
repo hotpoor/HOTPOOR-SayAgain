@@ -1,1 +1,1 @@
-qwen-tts==0.1.1
+-r ../skills/sayagain/scripts/requirements.txt

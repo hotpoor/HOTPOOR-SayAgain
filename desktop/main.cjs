@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog, session, Menu, net, shell, clipboard } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -32,6 +32,14 @@ else {
       return service[method](value);
     });
     for(const [method,handler] of Object.entries({speechSettings:value=>speech.configure(value),clearApiKey:()=>speech.clearKey(),revealApiKey:()=>speech.secrets.get(),listApiKeys:()=>speech.secrets.list(),synthesize:value=>speech.request(value),cancelSynthesis:value=>speech.cancel(value),speechStatus:()=>speech.status(),cloudPlatform:()=>shell.openExternal('https://platform.qianwenai.com/')}))ipcMain.handle(`sayagain:${method}`,(event,value)=>{if(!trusted(event))throw new Error('无效的页面来源');return handler(value);});
+    ipcMain.handle('sayagain:skillPackage',async(event,action)=>{
+      if(!trusted(event))throw new Error('无效的页面来源');
+      const bundle=require('./skill-package.cjs');
+      if(action==='copy'){clipboard.writeText(await bundle.copyableSkill());return true;}
+      if(action==='open'){const error=await shell.openPath(bundle.source);if(error)throw new Error(error);return true;}
+      if(action==='export'){const result=await dialog.showOpenDialog(win,{title:'选择 Skill 导出位置',properties:['openDirectory','createDirectory']});if(result.canceled)return null;return bundle.exportSkill(result.filePaths[0]);}
+      throw new Error('未知 Skill 操作');
+    });
     ipcMain.handle('sayagain:fullscreen', (event, exit) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       win.setFullScreen(exit === true ? false : !win.isFullScreen());

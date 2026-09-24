@@ -44,7 +44,7 @@ Qwen3-TTS VC Realtime 使用鉴权 WebSocket，收齐 session.finished 前的 PC
 
 ## Skill 接入
 
-在设置中启用 Skill 接入，再让自己的客户端读取仓库 `skills/sayagain/SKILL.md`。`npm run skill:context` 可检查本地上下文。接入仅监听随机本机端口，连接描述文件含会话令牌并设为仅用户可读写，不进入备份。
+在设置的 Skill 接入区启用本地接口，再点击「复制完整 Skill」粘贴给其他客户端，或「导出完整 Skill」复制整个文件夹到宿主支持的技能目录。包包含说明、协议、调用脚本、本地模型检查/安装/注册脚本，无需原仓库路径。需要同机运行 SayAgain、Node.js 22+ 与宿主执行本地命令的能力。接口启用不代表宿主安装成功；先读 context，再以评估回执确认实际调用。`npm run skill:context` 可检查本地上下文。接入仅监听随机本机端口，连接描述文件含会话令牌并设为仅用户可读写，不进入备份。
 
 Skill 提交结构化评估与回执，保存被选中的表达片段，不保存整条来源消息。可选 `skills/sayagain/scripts/prompt-hook.cjs` 用于宿主 UserPromptSubmit 提醒；未自动安装全局钩子或改变信任设置，也不宣称每轮必达。宿主接入和每轮回执需后续单独验证。
 
