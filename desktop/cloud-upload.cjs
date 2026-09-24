@@ -1,8 +1,8 @@
 const fs=require('node:fs');
 const {randomUUID}=require('node:crypto');
 const {normalizeAudioUrl}=require('./audio-url.cjs');
-async function uploadReference(speech,filename,key,signal){
- const response=await speech.fetch('https://maas.qianwenaiapi.com/api/v1/uploads?action=getPolicy&model=voice-enrollment',{headers:{Authorization:`Bearer ${key}`},redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(60000)])});
+async function uploadReference(speech,filename,key,signal,model='voice-enrollment'){
+ const response=await speech.fetch('https://maas.qianwenaiapi.com/api/v1/uploads?action=getPolicy&model='+encodeURIComponent(model),{headers:{Authorization:`Bearer ${key}`},redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(60000)])});
  if(!response.ok)throw new Error(`参考录音上传凭证获取失败 (${response.status})`);
  const policy=JSON.parse((await speech.readLimited(response,1024*1024)).toString()).data;
  if(!policy||typeof policy.upload_dir!=='string'||!policy.upload_dir||/[\r\n]/.test(policy.upload_dir))throw new Error('参考录音上传凭证不完整');

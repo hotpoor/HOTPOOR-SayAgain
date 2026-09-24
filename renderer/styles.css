@@ -995,3 +995,41 @@ dialog::backdrop {
 
 .synthesis-model { margin: 8px 0 16px; color: #777; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .synthesis-model span { color: #555; font-family: ui-monospace, monospace; }
+
+.model-picker { border:0; padding:0; margin:24px 0; min-width:0; }
+.model-picker legend { font-size:13px; font-weight:600; margin-bottom:12px; }
+.model-picker legend .muted { color:var(--muted); font-weight:400; margin-left:8px; }
+.model-list { max-height:360px; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; padding:0 6px 4px 0; }
+.model-group-title { color:var(--muted); font-size:11px; letter-spacing:.04em; padding:18px 12px 8px; }
+.model-group-title:first-child { padding-top:0; }
+.model-choice { position:relative; display:flex; align-items:center; gap:12px; padding:11px 12px; margin:2px 0; cursor:pointer; border-radius:8px; }
+.model-choice:hover { background:#f7f7f7; }
+.model-choice:has(input:checked) { background:#eee; }
+.model-choice input { position:absolute; opacity:0; width:1px; height:1px; }
+.choice-mark { flex:none; width:18px; height:18px; border:1px solid #bcbcbc; border-radius:50%; display:grid; place-items:center; }
+.model-choice input:checked + .choice-mark { background:#262626; border-color:#262626; }
+.model-choice input:checked + .choice-mark::after { content:'✓'; color:white; font-size:12px; }
+.model-choice input:focus-visible + .choice-mark { outline:2px solid #777; outline-offset:3px; }
+.model-copy { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.model-copy strong { font-weight:500; font-size:13px; }
+.model-copy small { color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
+.model-fee { display:flex; align-items:flex-start; gap:7px; font-size:11px!important; color:var(--muted); line-height:1.6; }
+.model-fee svg { width:15px; height:15px; flex:none; margin-top:2px; }
+dialog .model-list { max-height:260px; }
+
+/* Each pane owns its scrolling; grid content must not enlarge the window. */
+html, body { height:100%; overflow:hidden; }
+.shell { min-height:0; overflow:hidden; grid-template-rows:minmax(0,1fr); }
+.workspace, .sidebar { min-height:0; overflow:hidden; }
+.sidebar { overflow-y:auto; overscroll-behavior:contain; }
+.sidebar > * { flex-shrink:0; }
+main { overscroll-behavior:contain; }
+dialog { overflow:hidden; }
+#editor-form { display:flex; flex-direction:column; max-height:calc(100vh - 72px); }
+.dialog-header, .dialog-footer { flex:none; }
+#editor-fields { overflow-y:auto; overscroll-behavior:contain; min-height:0; padding:3px 4px; }
+.choice-field { border:0; margin:18px 0; padding:0; min-width:0; }
+.choice-field legend { font-size:13px; font-weight:600; margin-bottom:8px; }
+.mode-choices { display:flex; flex-wrap:wrap; gap:8px; }
+.voice-choices { max-height:140px; overflow:auto; overscroll-behavior:contain; }
+.model-list { scrollbar-gutter:stable; }

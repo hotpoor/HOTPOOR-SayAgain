@@ -6,13 +6,14 @@ const {modelStatus,MODEL,REVISION}=require('./local-model.cjs');
 const {parseWav,normalizeCloudWav}=require('./audio.cjs');
 const {normalizeAudioUrl}=require('./audio-url.cjs');
 const {CLOUD_MODEL,CLOUD_MODELS,cloudModel}=require('./cloud-models.cjs');
+const {synthesizeRealtime}=require('./cloud-realtime.cjs');
 const {uploadReference}=require('./cloud-upload.cjs');
 const BASE='https://maas.qianwenaiapi.com/api/v1';
 const LANGUAGES={zh:'Chinese',en:'English',ja:'Japanese',ko:'Korean',de:'German',fr:'French',ru:'Russian',pt:'Portuguese',es:'Spanish',it:'Italian'};
 const hash=value=>createHash('sha256').update(value).digest('hex');
 class Speech {
- constructor(service,userDirectory,{secrets,fetch:fetcher=global.fetch,onChange=()=>{},localStatus=modelStatus,localRunner}={}){
-  this.service=service;this.userDirectory=userDirectory;this.secrets=secrets;this.fetch=fetcher;this.onChange=onChange;this.localStatus=localStatus;this.localRunner=localRunner;this.busy=false;this.closed=false;this.active=null;
+ constructor(service,userDirectory,{secrets,fetch:fetcher=global.fetch,onChange=()=>{},localStatus=modelStatus,localRunner,realtime=synthesizeRealtime}={}){
+  this.realtime=realtime;this.service=service;this.userDirectory=userDirectory;this.secrets=secrets;this.fetch=fetcher;this.onChange=onChange;this.localStatus=localStatus;this.localRunner=localRunner;this.busy=false;this.closed=false;this.active=null;
   if(!this.config())service.store.put({type:'speech_config',profile_id:service.profileId,mode:'local',cloud_enabled:false,cloud_model:CLOUD_MODEL});
   service.store.transaction(()=>{for(const job of service.store.list('job'))if(job.body.kind==='synthesis'&&['queued','running'].includes(job.body.status)){service.update(job,{status:'failed',error:'上次运行中断，请手动重试。云端请求可能已计费。'});const synthesis=service.store.get(job.body.target_id);if(synthesis)service.update(synthesis,{status:'failed',error:'上次运行中断，请手动重试。'});}});
  }
@@ -52,6 +53,7 @@ class Speech {
    if(format.duration_ms<10000||format.duration_ms>60000||asset.body.byte_size>10*1024*1024)throw new Error('云端克隆需要 10–60 秒、10 MB 以内的参考录音，建议 10–20 秒');
    keyFingerprint=hash(this.secrets.get());
   }
+  if(config.mode==='cloud'&&input.set_default_model===true)s.store.transaction(()=>s.update(this.config(),{cloud_model:selectedModel}));
   const cache=hash(JSON.stringify({text:expression.body.improved,language,provider:config.mode,model:config.mode==='local'?MODEL:selectedModel,revision:config.mode==='local'?REVISION:selectedModel,device:runtime?.device||null,voice:voice.block_id,voice_revision:voice.body.voice_revision,sample_hash:asset.body.sha256,transcript:sample.body.transcript,keyFingerprint}));
   const found=s.store.db.prepare('SELECT block_id FROM dedupe_index WHERE scope=? AND dedupe_key=?').get('synthesis',cache);
   let synthesis=found?s.entity(found.block_id,'synthesis'):null;
@@ -94,10 +96,14 @@ class Speech {
     let remoteVoice=found?s.entity(found.block_id,'voice_prompt').body.remote_voice:null;
     if(!remoteVoice){
      let result;
-     if(model.family==='qwen-audio'){
+     if(['qwen-audio','cosyvoice'].includes(model.family)){
       const url=await uploadReference(this,reference,key,controller.signal);
       result=await this.post('/services/audio/tts/customization',{model:'voice-enrollment',input:{action:'create_voice',target_model:model.id,prefix:'sayagain',url}},key,controller.signal,{'X-DashScope-OssResourceResolve':'enable'});
       remoteVoice=result.output?.voice_id;
+     }else if(model.family==='minimax'){
+      const url=await uploadReference(this,reference,key,controller.signal,model.id);
+      remoteVoice='sayagain'+newId();
+      await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{action:'voice_clone',voice_id:remoteVoice,audio_url:url,text:record.body.text_snapshot}},key,controller.signal,{'X-DashScope-OssResourceResolve':'enable'});
      }else{
       result=await this.post('/services/audio/tts/customization',{model:'qwen-voice-enrollment',input:{action:'create',target_model:model.id,preferred_name:'sayagain',audio:{data:`data:audio/wav;base64,${fs.readFileSync(reference).toString('base64')}`}}},key,controller.signal);
       remoteVoice=result.output?.voice;
@@ -105,13 +111,20 @@ class Speech {
      if(typeof remoteVoice!=='string'||!remoteVoice)throw new Error('云端未返回有效音色');
      s.store.put({type:'voice_prompt',profile_id:s.profileId,provider:'qianwen',voice_id:voice.block_id,sample_id:sample.block_id,remote_voice:remoteVoice,model_id:model.id,status:'ready',links:[{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'cloud_voice',key:promptKey}]});
     }
-    const result=model.family==='qwen-audio'
+    if(model.family==='qwen-realtime'){bytes=await this.realtime({model:model.id,voice:remoteVoice,text:record.body.text_snapshot,key,signal:controller.signal});}
+    else if(model.family==='minimax'){
+     const result=await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{text:record.body.text_snapshot,voice_setting:{voice_id:remoteVoice},audio_setting:{format:'wav',sample_rate:24000,channel:1},output_format:'hex'}},key,controller.signal,{},64*1024*1024);
+     if(result.output?.data?.status!==2)throw new Error('MiniMax 音频尚未完整返回');
+     const audio=result.output?.data?.audio;if(typeof audio!=='string'||!audio.length||audio.length%2||!/^[0-9a-f]+$/i.test(audio))throw new Error('MiniMax 未返回完整音频');bytes=Buffer.from(audio,'hex');
+    }else{
+    const result=['qwen-audio','cosyvoice'].includes(model.family)
      ?await this.post('/services/audio/tts/SpeechSynthesizer',{model:model.id,input:{text:record.body.text_snapshot,voice:remoteVoice,format:'wav',sample_rate:24000}},key,controller.signal)
      :await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{text:record.body.text_snapshot,voice:remoteVoice,language_type:record.body.language}},key,controller.signal);
     const url=normalizeAudioUrl(result.output?.audio?.url);
     const response=await this.fetch(url,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)]),redirect:'error'});
     if(!response.ok)throw new Error(`下载云端音频失败 (${response.status})`);bytes=await this.readLimited(response,30*1024*1024);
     const length=response.headers.get('content-length');if(length&&(!response.headers.get('content-encoding')||response.headers.get('content-encoding')==='identity')&&Number(length)!==bytes.length)throw new Error('音频下载不完整，请稍后重试');
+    }
     fs.mkdirSync(downloadDirectory,{recursive:true,mode:0o700});const staging=downloadFile+'.tmp';try{fs.writeFileSync(staging,bytes,{mode:0o600});fs.renameSync(staging,downloadFile);}finally{if(fs.existsSync(staging))fs.unlinkSync(staging);}
     }
     bytes=normalizeCloudWav(bytes);
@@ -133,10 +146,11 @@ class Speech {
   }finally{if(fs.existsSync(temporary))fs.unlinkSync(temporary);this.active=null;this.onChange();}
  }
  async readLimited(response,max){const chunks=[];let total=0;for await(const chunk of response.body){total+=chunk.length;if(total>max)throw new Error('云端响应超过大小限制');chunks.push(Buffer.from(chunk));}return Buffer.concat(chunks);}
- async post(endpoint,payload,key,signal,extraHeaders={}){
+ async post(endpoint,payload,key,signal,extraHeaders={},maxBytes=1024*1024){
   const response=await this.fetch(BASE+endpoint,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json',...extraHeaders},body:JSON.stringify(payload),redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(120000)])});
   if(!response.ok)throw new Error(`千问AI平台请求失败 (${response.status})，请检查密钥、余额或平台控制台。`);
-  const result=JSON.parse((await this.readLimited(response,1024*1024)).toString('utf8'));
+  const result=JSON.parse((await this.readLimited(response,maxBytes)).toString('utf8'));
+  if(result.output?.base_resp?.status_code)throw new Error('MiniMax 返回业务错误，请检查模型权限与平台额度');
   if(result.code)throw new Error('千问AI平台返回业务错误，请在平台控制台检查请求。');return result;
  }
  runLocal(python,request,signal){return new Promise((resolve,reject)=>{

@@ -11,7 +11,7 @@
 默认朗读文案跟随设置中的母语，当前中文为原创日常叙述，并提供其他已支持母语的对应文案。文案独立维护在 `renderer/reading-prompts.js`；没有预置文案的语言显示提示，不替换成目标语言。Skill 动态替换文案是后续功能，本次未提供运行时替换接口。
 6. 在表达右侧点击「生成语音」，可选择本次生成模型（不改变默认模型），选择音色并确认发送该参考录音和文字。任务成功后显示波形、播放与慢速入口；失败显示错误，可手动重试。
 
-没有有效录音、有效 AK 或平台额度时，不能完成真实合成。四款模型接口适配已用模拟响应测试；Qwen3-TTS VC 和 Qwen-Audio 3.0 TTS Plus 已完成真实合成（各 3.68 秒），两款 Flash 尚未实测，尚未评价音色相似度。云端流式 WAV 的未知长度头会规范化，保持 PCM 音频数据不变；真正截断的普通 WAV 仍报错。解析失败的完整下载保留在应用目录 tts-downloads，同一任务重试会复用，成功后清理。
+没有有效录音、有效 AK 或平台额度时，不能完成真实合成。13 款模型接口适配已用模拟响应测试；Qwen3-TTS VC 和 Qwen-Audio 3.0 TTS Plus 已完成真实合成（各 3.68 秒），其余 11 款尚未逐一实测，尚未评价音色相似度。云端流式 WAV 的未知长度头会规范化，保持 PCM 音频数据不变；真正截断的普通 WAV 仍报错。解析失败的完整下载保留在应用目录 tts-downloads，同一任务重试会复用，成功后清理。
 
 ## 凭据与请求
 
@@ -19,10 +19,20 @@
 - AK 不写入 SQLite、日志、音频下载请求或备份。项目 `.secret` 是用户单独保存的私密文件，Git 忽略，不自动导入客户端。
 - 清除密钥或关闭云端时取消未完成任务。已经发出的请求可能仍由平台计费。
 - 固定 API 地址 `https://maas.qianwenaiapi.com/api/v1`。Qwen3-TTS VC 使用 `qwen-voice-enrollment` 与 multimodal-generation；Qwen-Audio 使用 `voice-enrollment` 与 SpeechSynthesizer，参考录音通过平台临时 OSS 上传接口提交。上传请求不携带 API Key，音色创建时启用 OSS 资源解析。
-- 支持选择 `qwen3-tts-vc-2026-01-22`、`qwen-audio-3.0-tts-plus`、`qwen-audio-3.1-tts-flash`、`qwen-audio-3.0-tts-flash`。设置保存默认值，生成窗口可单次覆盖。任务保存选定模型，后续更改设置不影响排队任务和历史标注；不同模型分别创建音色、缓存音频。
+- 支持 13 款：Qwen-Audio 3.0 Plus / 3.1 Flash / 3.0 Flash；Qwen3-TTS VC 2026-01-22 / VC Realtime 2026-01-15；CosyVoice v3.5 Plus / v3.5 Flash / v3 Plus / v3 Flash；MiniMax speech-2.8-hd / speech-02-hd / speech-2.8-turbo / speech-02-turbo。设置页用分组勾选列表保存默认模型，生成窗口可单次覆盖，或勾选「同时设为默认模型」。任务保存选定模型，后续更改设置不影响排队任务和历史标注；不同模型分别创建音色、缓存音频。
 - 同密钥、模型和参考音频复用云端音色；相同合成输入复用已保存音频。中断后不自动重试付费请求。
 
 平台文档：[音色克隆](https://platform.qianwenai.com/docs/developer-guides/speech/voice-cloning)、[语音合成](https://platform.qianwenai.com/docs/api-reference/speech-synthesis/qwen-tts)。
+
+## 新增接口与界面
+
+CosyVoice 复用 voice-enrollment / SpeechSynthesizer；MiniMax 通过平台临时上传、voice_clone 与非流式 hex WAV 合成接入。MiniMax 首次使用新克隆音色有解锁费用，界面标明当前目录价 ¥9.9，另计试听与合成，实际按平台账单。
+
+Qwen3-TTS VC Realtime 使用鉴权 WebSocket，收齐 session.finished 前的 PCM 才保存 WAV；中断、超时或取消不标记成功。此版本生成完成后播放，不提供边生成边播放。
+
+左侧导航、右侧内容、模型列表和弹窗内容分别滚动，顶部栏与弹窗操作区保留在各自区域。
+
+接口参考：[MiniMax](https://platform.qianwenai.com/docs/api-reference/speech-synthesis/minimax-tts)、[实时 Qwen-TTS](https://platform.qianwenai.com/docs/api-reference/speech-synthesis/qwen-tts-realtime/websocket-api)。
 
 ## 本地模型
 
