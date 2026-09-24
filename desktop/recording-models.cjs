@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-const names={fsmn:'FSMN VAD',sensevoice:'SenseVoice INT8',campplus:'CAMPPlus',zipformer:'Zipformer 关键词'};
+const names={silero:'Silero VAD',fsmn:'FSMN VAD',sensevoice:'SenseVoice INT8',campplus:'CAMPPlus',zipformer:'Zipformer 关键词'};
 function runtime(directory){try{return JSON.parse(fs.readFileSync(path.join(directory,'recording-models/runtime.json'),'utf8'));}catch{return null;}}
 function status(directory){const data=runtime(directory);return Object.entries(names).map(([key,name])=>{const m=data?.models?.[key];return{name,key,device:data?.device||'cpu',status:!m||!fs.existsSync(m.path)?'未登记或文件缺失':m.verified?'本机推理验证通过':'已下载登记 · 待推理验证'};});}
 const running=new Set();

@@ -1,0 +1,5 @@
+# Minimal Silero + speaker clips runtime, separate from Qwen3-TTS.
+sherpa-onnx==1.13.8
+numpy==1.26.4
+soundfile==0.14.0
+scikit-learn==1.5.2

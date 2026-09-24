@@ -16,7 +16,7 @@ def download(url,target,size=None,digest=None):
     if digest and hashlib.sha256(partial.read_bytes()).hexdigest()!=digest:raise ValueError('Download hash mismatch')
     partial.replace(target)
 models={}
-items=[('sensevoice','asr-models','sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2'),('campplus','speaker-recongition-models','3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx'),('zipformer','kws-models','sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2')]
+items=[('silero','asr-models','silero_vad.onnx'),('sensevoice','asr-models','sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2'),('campplus','speaker-recongition-models','3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx'),('zipformer','kws-models','sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2')]
 for key,tag,name in items:
     meta=api('https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/tags/'+tag)
     asset=next(x for x in meta['assets'] if x['name']==name);target=root/name

@@ -12,7 +12,7 @@ if (process.env.SAYAGAIN_DATA_DIR) {
   app.setPath('userData', process.env.SAYAGAIN_DATA_DIR);
 }
 protocol.registerSchemesAsPrivileged([{ scheme: 'sayagain-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
-let win, service, bridge, speech, quitting=false;
+let win, service, bridge, speech, speakerPipeline, quitting=false;
 const pagePath = path.join(__dirname, '../renderer/index.html');
 const iconPath = path.join(__dirname, '../renderer/assets/sayagain-icon.png');
 const pageUrl = pathToFileURL(pagePath).href;
@@ -27,6 +27,7 @@ else {
     service = new Service(path.join(app.getPath('userData'), 'data'));
     const changed=()=>{if(win&&!win.isDestroyed())win.webContents.send('sayagain:data-changed');};
     bridge=await startBridge(service,app.getPath('userData'),changed);
+    speakerPipeline=new (require('./speaker-pipeline.cjs').SpeakerPipeline)(service,app.getPath('userData'),changed);
     speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
     const methods = ['createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
@@ -36,6 +37,19 @@ else {
       return service[method](value);
     });
     for(const [method,handler] of Object.entries({speechSettings:value=>speech.configure(value),clearApiKey:()=>speech.clearKey(),revealApiKey:()=>speech.secrets.get(),listApiKeys:()=>speech.secrets.list(),synthesize:value=>speech.request(value),cancelSynthesis:value=>speech.cancel(value),speechStatus:()=>speech.status(),cloudPlatform:()=>shell.openExternal('https://platform.qianwenai.com/')}))ipcMain.handle(`sayagain:${method}`,(event,value)=>{if(!trusted(event))throw new Error('无效的页面来源');return handler(value);});
+    ipcMain.handle('sayagain:speakerPipeline',async(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');
+      if(input?.action==='status')return speakerPipeline.status();
+      if(input?.action==='cancel')return speakerPipeline.cancel();
+      if(input?.action==='session')return speakerPipeline.start({id:input.id,options:input.options});
+      if(input?.action==='import'){
+        if(speakerPipeline.status().state==='running')throw Error('已有任务正在运行');
+        const result=await dialog.showOpenDialog(win,{title:'导入音频并分人转写',properties:['openFile'],filters:[{name:'音频',extensions:['mp3','wav','m4a','flac','ogg','aac','opus']} ]});
+        if(result.canceled)return null;
+        return speakerPipeline.start({filename:result.filePaths[0],options:input.options});
+      }
+      throw Error('无效分段操作');
+    });
     ipcMain.handle('sayagain:analyzeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').analyze(service,app.getPath('userData'),input);});
     ipcMain.handle('sayagain:recordingModels',event=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').status(app.getPath('userData'));});
     ipcMain.handle('sayagain:transcribeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').transcribe(service,app.getPath('userData'),input);});
@@ -102,4 +116,4 @@ async function createWindow() {
 }
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('before-quit',event=>{if(speech&&!quitting){event.preventDefault();quitting=true;speech.close().finally(()=>app.quit());}});
-app.on('will-quit', () => {bridge?.close();service?.close();});
+app.on('will-quit', () => {speakerPipeline?.close();bridge?.close();service?.close();});
