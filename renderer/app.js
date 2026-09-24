@@ -2,6 +2,7 @@ const api = window.sayagain;
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const paths = {
+  info:'M12 8h.01M12 11v6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
   messages:'M4 4h16v12H9l-5 4V4Z', wave:'M3 10v4m4-8v12m5-16v20m5-16v12m4-8v4',
   settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3Zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
   sidebar:'M3 4h18v16H3V4Zm5 0v16', expand:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',
@@ -96,7 +97,8 @@ function renderSettings() {
   <section class="settings-section"><h2>本地数据</h2><p>三个 SQLite 数据库与录音文件保存在此处。备份包含数据库与音频，不包含 API Key 或模型权重。</p><code class="path">${escapeHtml(state.directory)}</code><button class="button" data-action="backup">导出完整备份</button></section></div></div>`;
   const cloudSection=$('#cloud-settings');
   $('.settings-layout').prepend(cloudSection);
-  if(!local.space_ok){const notice=document.createElement('p');notice.className='model-notice unavailable';notice.textContent='这台电脑空间不足，暂时无法安装本地 Qwen3-TTS。请在这里配置 Qwen 云端。';cloudSection.prepend(notice);}
+  if(!local.space_ok){const notice=document.createElement('div');notice.className='model-notice unavailable';notice.textContent='这台电脑空间不足，暂时无法安装本地 Qwen3-TTS。请在这里配置 Qwen 云端。';cloudSection.prepend(notice);}
+  document.querySelectorAll('.model-notice').forEach(notice=>{notice.innerHTML=`<span class="notice-icon">${icon('info')}</span><div class="notice-content">${notice.innerHTML}</div>`;});
   $('#speech-form [name="mode"]').value=!local.space_ok&&!speech.has_api_key?'cloud':speech.config.body.mode;
 }
 function synthesisMarkup(expressionId) {
