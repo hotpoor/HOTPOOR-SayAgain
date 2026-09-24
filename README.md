@@ -59,7 +59,7 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 ## 桌面客户端与界面方向
 
-<img src="renderer/assets/sayagain-icon.png" width="112" height="112" alt="SayAgain 圆角应用图标：黑底白色双气泡 S">
+<img src="renderer/assets/sayagain-icon.png" width="112" height="112" alt="SayAgain 圆角应用图标：白底黑色双气泡 S">
 
 横向 LOGO 用于项目品牌展示，署名为 **by HOTPOOR XIALIWEI**；圆角矩形应用图标保留双气泡 S，已接入窗口图标与 macOS Dock。
 
