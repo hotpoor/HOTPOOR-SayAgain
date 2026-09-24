@@ -18,8 +18,10 @@ class Speech {
  status(){const local=this.localStatus(this.userDirectory),key=this.secrets?.status?.()||{present:!!this.secrets?.has(),usable:!!this.secrets?.has(),error:null};return{config:this.config(),has_api_key:key.usable,api_key_present:key.present,api_key_error:key.error,local:{...local,runtime:undefined},cloud_platform:'https://platform.qianwenai.com/',cloud_model:CLOUD_MODEL};}
  configure(input){
   if(!['local','cloud'].includes(input.mode)||typeof input.cloud_enabled!=='boolean')throw new Error('语音设置无效');
+  if(input.keys?.length===0){input={...input,mode:'local',cloud_enabled:false};}
   if(input.mode==='cloud'&&!input.cloud_enabled)throw new Error('请主动启用云端');
-  if(input.api_key)this.secrets.set(input.api_key.trim());
+  if(input.keys)this.secrets.save({keys:input.keys,active_id:input.active_key_id});
+  else if(input.api_key)this.secrets.set(input.api_key.trim());
   if(input.mode==='cloud'&&!this.secrets?.has())throw new Error(this.secrets?.status?.().error||'请填写 API Key 并主动启用云端');
   if(!input.cloud_enabled)this.cancelCloud();
   return this.service.store.transaction(()=>this.service.update(this.config(),{mode:input.mode,cloud_enabled:input.cloud_enabled}));
