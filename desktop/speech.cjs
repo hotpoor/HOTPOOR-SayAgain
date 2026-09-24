@@ -54,13 +54,13 @@ class Speech {
    keyFingerprint=hash(this.secrets.get());
   }
   if(config.mode==='cloud'&&input.set_default_model===true)s.store.transaction(()=>s.update(this.config(),{cloud_model:selectedModel}));
-  const cache=hash(JSON.stringify({text:expression.body.improved,language,provider:config.mode,model:config.mode==='local'?MODEL:selectedModel,revision:config.mode==='local'?REVISION:selectedModel,device:runtime?.device||null,voice:voice.block_id,voice_revision:voice.body.voice_revision,sample_hash:asset.body.sha256,transcript:sample.body.transcript,keyFingerprint}));
+  const cache=hash(JSON.stringify({text:expression.body.improved,language,provider:config.mode,model:config.mode==='local'?runtime.model_id:selectedModel,revision:config.mode==='local'?runtime.revision:selectedModel,device:runtime?.device||null,voice:voice.block_id,voice_revision:voice.body.voice_revision,sample_hash:asset.body.sha256,transcript:sample.body.transcript,keyFingerprint}));
   const found=s.store.db.prepare('SELECT block_id FROM dedupe_index WHERE scope=? AND dedupe_key=?').get('synthesis',cache);
   let synthesis=found?s.entity(found.block_id,'synthesis'):null;
   if(synthesis?.body.status==='succeeded'){try{s.asset(synthesis.body.asset_id);return{...synthesis,cached:true};}catch{}}
   if(synthesis&&['queued','running'].includes(synthesis.body.status))return synthesis;
   synthesis=s.store.transaction(()=>{
-   const body={type:'synthesis',profile_id:s.profileId,expression_id:expression.block_id,content_revision:expression.body.content_revision,text_snapshot:expression.body.improved,voice_id:voice.block_id,voice_revision:voice.body.voice_revision,sample_id:sample.block_id,sample_hash:asset.body.sha256,reference_text:sample.body.transcript,provider:config.mode,model_id:config.mode==='local'?MODEL:selectedModel,model_revision:config.mode==='local'?REVISION:selectedModel,language,status:'queued',error:null,cache_key:cache,key_fingerprint:keyFingerprint,links:[{relation:'expression',target_id:expression.block_id},{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'synthesis',key:cache}]};
+   const body={type:'synthesis',profile_id:s.profileId,expression_id:expression.block_id,content_revision:expression.body.content_revision,text_snapshot:expression.body.improved,voice_id:voice.block_id,voice_revision:voice.body.voice_revision,sample_id:sample.block_id,sample_hash:asset.body.sha256,reference_text:sample.body.transcript,provider:config.mode,model_id:config.mode==='local'?runtime.model_id:selectedModel,model_revision:config.mode==='local'?runtime.revision:selectedModel,language,status:'queued',error:null,cache_key:cache,key_fingerprint:keyFingerprint,links:[{relation:'expression',target_id:expression.block_id},{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'synthesis',key:cache}]};
    const record=synthesis?s.update(synthesis,body):s.store.put(body);
    s.store.put({type:'job',profile_id:s.profileId,kind:'synthesis',target_id:record.block_id,status:'queued',attempts:1,links:[{relation:'synthesis',target_id:record.block_id}]});return record;
   });
@@ -131,7 +131,7 @@ class Speech {
    }
    if(controller.signal.aborted)throw new Error('任务已取消');
    const metadata=parseWav(bytes),assetId=newId(),relative=`assets/${assetId}.wav`,filename=path.join(s.directory,relative);
-   fs.writeFileSync(temporary,bytes,{mode:0o600});const fd=fs.openSync(temporary,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temporary,filename);
+   fs.writeFileSync(temporary,bytes,{mode:0o600});const fd=fs.openSync(temporary,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temporary,filename);
    try{s.store.transaction(()=>{
     s.store.put({type:'asset',profile_id:s.profileId,relative_path:relative,sha256:hash(bytes),media_type:'audio/wav',byte_size:bytes.length,...metadata},{id:assetId});
     const current=s.entity(id,'synthesis');s.update(current,{status:'succeeded',asset_id:assetId,...metadata,completed_at:Date.now(),links:[...current.body.links,{relation:'asset',target_id:assetId}]});
@@ -154,7 +154,7 @@ class Speech {
   if(result.code)throw new Error('千问AI平台返回业务错误，请在平台控制台检查请求。');return result;
  }
  runLocal(python,request,signal){return new Promise((resolve,reject)=>{
-  const child=spawn(python,[path.join(__dirname,'../workers/qwen_tts_worker.py')],{stdio:['pipe','pipe','pipe'],env:{...process.env,HF_HUB_OFFLINE:'1',TRANSFORMERS_OFFLINE:'1'}});
+  const child=spawn(python,[path.join(__dirname,'../workers/qwen_tts_worker.py')],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,HF_HUB_OFFLINE:'1',TRANSFORMERS_OFFLINE:'1'}});
   let output='';const timer=setTimeout(()=>child.kill('SIGTERM'),20*60*1000);const abort=()=>child.kill('SIGTERM');signal.addEventListener('abort',abort,{once:true});
   child.stdout.on('data',chunk=>{output+=chunk;if(output.length>64000)child.kill('SIGTERM');});child.stderr.on('data',()=>{});
   child.once('error',reject);child.stdin.on('error',()=>{});

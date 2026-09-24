@@ -1076,3 +1076,5 @@ dialog { overflow:hidden; }
 .timeline-ticks span { position:relative; }
 .timeline-ticks span::before { content:''; position:absolute; width:1px; height:3px; background:#ccc; top:-4px; left:50%; }
 @media(max-width:700px) { .topbar-right { gap:6px; } #language-badge { display:none; } }
+
+.local-plans{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0}.local-plans th,.local-plans td{text-align:left;padding:8px;border-bottom:1px solid #e5e5e5}.local-plans td:first-child{white-space:nowrap}

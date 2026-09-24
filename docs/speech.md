@@ -36,12 +36,29 @@ Qwen3-TTS VC Realtime 使用鉴权 WebSocket，收齐 session.finished 前的 PC
 
 ## 本地模型
 
+软件只提供提示、运行模式配置和语音调用，不内置权重、不在切换模式时下载。模型下载、独立环境安装、硬件检查和运行验证由用户授权的 SayAgain Skill 执行；优先复用已有环境。
+
 `npm run tts:check` 检查磁盘；`npm run tts:install` 仅在预检通过后安装。首次安装要求预留 10 GiB，这是包含依赖和缓存的预算，不是模型本身大小或官方硬件最低要求。空间不足会退出且不下载模型；已安装环境另预留 512 MiB 用于合成。
 
-模型固定为 Qwen/Qwen3-TTS-12Hz-0.6B-Base；模型约 2.52 GB。Python 仅用于独立 TTS worker，Electron 页面和存储使用 JavaScript。当前机器未安装或验证本地推理，CPU 为保守默认后端。
+默认安装脚本固定为 Qwen/Qwen3-TTS-12Hz-0.6B-Base（模型约 2.52 GB），并非限制只能使用该模型。已有环境注册支持 0.6B/1.7B Base 与 CPU/CUDA/MPS；Windows 本机 1.7B + CUDA 已完成一次真实合成和缓存复用验证，其他组合未在本机测速。Python 仅用于独立 TTS worker，Electron 页面和存储使用 JavaScript。
 
 ## Skill 接入
 
 在设置中启用 Skill 接入，再让自己的客户端读取仓库 `skills/sayagain/SKILL.md`。`npm run skill:context` 可检查本地上下文。接入仅监听随机本机端口，连接描述文件含会话令牌并设为仅用户可读写，不进入备份。
 
 Skill 提交结构化评估与回执，保存被选中的表达片段，不保存整条来源消息。可选 `skills/sayagain/scripts/prompt-hook.cjs` 用于宿主 UserPromptSubmit 提醒；未自动安装全局钩子或改变信任设置，也不宣称每轮必达。宿主接入和每轮回执需后续单独验证。
+
+
+## 复用现有环境（Windows / CPU / CUDA）
+
+已有 Qwen3-TTS Base 权重和 Python 环境时无需再次下载。关闭客户端后运行：
+
+```sh
+node scripts/register-local-tts.cjs --python <Python绝对路径> --model-path <模型绝对路径> --device cuda:0
+```
+
+支持 0.6B Base 和 1.7B Base，设备可为 cpu、cuda:0 或 mps。注册器核实 Python 依赖和加速设备可用性，为模型文件计算指纹，并备份原 runtime.json；不修改已有 Python 环境。设置页显示实际模型和设备，以及 0.6B/1.7B × CPU/GPU 四种部署组合。CPU 无需独显；GPU 要求兼容环境。模型更大不等于每条语音必然更好，不承诺统一速度或显存下限。注册成功不等于完成音频质量验证。
+
+模型、修订、设备均参与缓存标识；切换模型不会误用旧模型音频。CUDA 使用 bfloat16 和 SDPA。原安装器仍默认安装 0.6B CPU。
+
+Windows 文件刷新使用可写句柄；0600 是 POSIX 模式，Windows 实际权限继承用户目录 ACL，不能宣称 chmod 提供同样的权限隔离。

@@ -23,7 +23,7 @@ function createSecrets(directory){
   const keys=input.keys.map((item,i)=>{if(!item||typeof item.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id))throw new Error('Key 标识重复或无效');ids.add(item.id);const key=normalizeKey(item.key);if(values.has(key))throw new Error('列表中有重复的 Key，请保留一条');values.add(key);const name=String(item.name||('Key '+(i+1))).trim();if(name.length>120)throw new Error('Key 名称最多 120 字');return{id:item.id,name,key,created_at:previous.keys.find(k=>k.id===item.id)?.created_at||Date.now()};});
   const active_id=keys.length?input.active_id:null;if(keys.length&&!ids.has(active_id))throw new Error('请选择当前使用的 Key');
   const value={version:1,active_id,keys},temp=filename+'.tmp';
-  try{fs.writeFileSync(temp,JSON.stringify(value,null,2),{mode:0o600});fs.chmodSync(temp,0o600);const fd=fs.openSync(temp,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,filename);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+  try{fs.writeFileSync(temp,JSON.stringify(value,null,2),{mode:0o600});fs.chmodSync(temp,0o600);const fd=fs.openSync(temp,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,filename);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
   return value;
  }
  function read(){const value=list(),current=value.keys.find(k=>k.id===value.active_id);if(!current)throw new Error(!fs.existsSync(filename)&&fs.existsSync(legacy)?'旧版 AK 使用加密存储，请重新粘贴并保存一次':'请先添加并选择一个 Qwen API Key');return normalizeKey(current.key);}

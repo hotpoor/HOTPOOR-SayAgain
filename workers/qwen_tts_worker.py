@@ -21,7 +21,7 @@ def main():
         # CPU is the portable default; accelerate backends are explicitly selected.
         dtype = torch.float32 if device in ('cpu', 'mps') else torch.bfloat16
         model = Qwen3TTSModel.from_pretrained(request['model_path'], device_map=device,
-                                             dtype=dtype, attn_implementation='eager', local_files_only=True)
+                                             dtype=dtype, attn_implementation='sdpa' if device.startswith('cuda') else 'eager', local_files_only=True)
         ref_audio, sr = sf.read(request['reference_path'], dtype='float32')
         if ref_audio.ndim > 1:
             ref_audio = ref_audio.mean(axis=1)
