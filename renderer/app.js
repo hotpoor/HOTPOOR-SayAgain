@@ -24,12 +24,14 @@ const duration = ms => { const s = Math.floor((ms || 0)/1000); return `${Math.fl
 let state, page = 'review', search = '', filter = 'active', pair = 'current', dialogMode, editing, toastTimer;
 let recording, microphone, recordingTimer, pendingAudio, previewUrl;
 let audioGeneration = 0;
-let player = null, playerSampleId = null;
+let player = null, playerSampleId = null, playerFrame = null, playerCleanup = null;
 const editor = $('#editor');
 function notify(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 4500); }
 function errorMessage(error) { return String(error.message || error).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
 async function refresh() { state = await api.state(); render(); }
 function stopPlayer() {
+  playerCleanup?.(); playerCleanup = null;
+  cancelAnimationFrame(playerFrame); playerFrame = null;
   if (player) { player.pause(); player.removeAttribute('src'); player.load(); }
   player = null; playerSampleId = null;
 }
@@ -202,16 +204,33 @@ async function playSample(id) {
     player = new Audio(`sayagain-asset://audio/${sample.body.asset_id}`); playerSampleId = id;
     const node = document.querySelector(`[data-sample="${id}"]`);
     const audio = player;
-    player.addEventListener('timeupdate', () => {
-      node.querySelector('[data-seek]').value = audio.duration ? audio.currentTime/audio.duration*1000 : 0;
-      const progress = audio.duration ? audio.currentTime/audio.duration*320 : 0;
+    const paint = () => {
+      if (player !== audio || !node.isConnected) return;
+      const fraction = Number.isFinite(audio.duration) && audio.duration > 0 ? Math.min(1,Math.max(0,audio.currentTime/audio.duration)) : 0;
+      node.querySelector('[data-seek]').value = fraction*1000;
+      const progress = fraction*320;
       node.querySelector('[data-progress]').setAttribute('x1',progress);
       node.querySelector('[data-progress]').setAttribute('x2',progress);
       node.querySelector('.time').textContent = `${duration(audio.currentTime*1000)} / ${duration(sample.body.duration_ms)}`;
-    });
-    const update = () => { node.querySelector('.player-play').innerHTML=icon(audio.paused?'play':'pause');node.querySelector('.player-play').setAttribute('aria-label',audio.paused?'播放参考录音':'暂停参考录音'); };
-    player.addEventListener('play',update);player.addEventListener('pause',update);player.addEventListener('ended',update);
-    player.addEventListener('error',()=>notify('录音文件无法播放，可能已被移动或损坏'));
+    };
+    const stopFrame = () => { cancelAnimationFrame(playerFrame); playerFrame = null; };
+    const frame = () => {
+      playerFrame = null;
+      if (player !== audio || !node.isConnected || audio.paused || audio.ended) return;
+      paint(); playerFrame = requestAnimationFrame(frame);
+    };
+    const update = () => {
+      if (player !== audio || !node.isConnected) return;
+      node.querySelector('.player-play').innerHTML=icon(audio.paused?'play':'pause');
+      node.querySelector('.player-play').setAttribute('aria-label',audio.paused?'播放参考录音':'暂停参考录音');
+      stopFrame(); paint();
+      if (!audio.paused && !audio.ended) playerFrame = requestAnimationFrame(frame);
+    };
+    const failed = () => { stopFrame(); notify('录音文件无法播放，可能已被移动或损坏'); };
+    const listeners = {play:update,pause:update,ended:update,seeked:paint,loadedmetadata:paint,error:failed};
+    for(const [event,handler] of Object.entries(listeners)) audio.addEventListener(event,handler);
+    playerCleanup = () => { stopFrame(); for(const [event,handler] of Object.entries(listeners)) audio.removeEventListener(event,handler); };
+
   }
   if(player.paused) await player.play(); else player.pause();
 }
