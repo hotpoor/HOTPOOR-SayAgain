@@ -45,22 +45,17 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 以上是产品目标，具体实现进度见下表。
 
-## 模型验证与合作展示预留
+## 语音转写原理与来源
 
-### 来源致谢与开放协作
+SayAgain 的语音处理流程先检测语音区间，再结合说话人信息分段，使用语音识别模型转写，最后供用户试听和校对。我们关注的输出不仅是识别文字，还包括标点、英文大小写、数字表达的规范化，以及分段边界处的正确拼接；这些环节需要分别验证，不能把格式改善等同于识别准确率提高，也不能跨说话人或无关语境误拼内容。
 
-感谢 [SenseVoiceSmall / SenseVoice 团队](https://github.com/QwenAudio/SenseVoice)提供语音理解模型，也感谢 [PatchX FreeNote](https://freenote.patch-x.cn/download/) 团队在此基础上的微调与产品优化。开发者在本次交流中确认，PatchX 官方已说明其使用 SenseVoiceSmall 进行微调；具体模型版本与测试范围见下方对照记录，单个样例的改善不代表所有场景的准确率结论。
+语音识别的来源模型是 [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，通过 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 运行相应的 ONNX 制品。SenseVoice 提供逆文本规范化（ITN）选项，将部分口语表达转换为更适合阅读的书面形式；具体权重、转换版本和运行设置会影响实际输出。现阶段暂缓模型版本选型与效果优劣的结论，标点、大小写和数字拼接作为后续验证目标，不在此承诺已全面实现。
 
-FreeNote 提供[官方 MCP 接入说明](https://freenote.patch-x.cn/mcp/setup/)与[公开 Agent 仓库](https://github.com/ZsTs119/patchx-freenote-agent)。开发者已接入 MCP，并根据实际执行结果分析调用策略、优化自己的使用流程，希望以可复现的问题和改进结果向官方反馈。这里记录的是开发者的使用实践，不表示 SayAgain 已内置 FreeNote MCP 集成。
+### 感谢 PatchX FreeNote
 
-我们希望开源产品之间的交流建立在真实体验和相互尊重上：注明上游与改进者的贡献，保留失败与改善的证据，让用户有机会按自己的需求调整工作流程。对内部实现的解释应标明推测，不将行为观察写成已确认的源码事实；公开接口接入、自有代码开源与第三方模型权重的使用、再分发许可分别核对。署名与致谢不替代许可，也不表示双方已有正式合作。模型权重的许可应以具体制品附带条款为准，参见 [SenseVoice 官方许可说明](https://github.com/QwenAudio/SenseVoice#license)。
+在开发者的实际使用中，[PatchX FreeNote](https://freenote.patch-x.cn/download/) 的转写呈现给我们留下了良好印象，尤其让我们关注到标点、英文大小写与数字表达对阅读体验的价值。感谢团队在 SenseVoiceSmall 基础上的微调和产品优化，也感谢上游模型作者的工作。这是使用体验与致谢，不作为不同模型的全面性能排名。
 
-我们认为，开放 MCP 的价值应体现在用户能把自己的记录和已开放能力接入更合适的工作流程。遇到软件体验问题时，开发者应持续改善自己的调用方式，并把实际结果反馈给提供方。Electron/Web 客户端的可观察性也有助于理解交互与客户端流程，但客户端可见内容不等于全部服务端策略，技术上可查看与许可上可复制、再分发仍应区分。
-
-### 测试与展示规划
-
-- [SenseVoice 模型对照记录](docs/sensevoice-model-comparison.md)：同一 Windows 环境四组测试，记录文件指纹、原始输出与耗时；尚未切换应用模型。
-- [PatchX Freenote 合作展示预留](docs/patchx-freenote.md)：预留硬件录音广告位和软文位置，待补素材与正式内容；当前为规划占位。
+我们也是 FreeNote 共创群的参与者，希望把真实问题和经过验证的改进反馈给团队，共同做出更好的产品。相关入口：[官方下载](https://freenote.patch-x.cn/download/)、[MCP 接入](https://freenote.patch-x.cn/mcp/setup/)。
 
 ## 本地优先
 
