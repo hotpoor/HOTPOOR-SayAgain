@@ -47,21 +47,23 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 ## 语音转写原理与来源
 
-SayAgain 的语音处理流程先检测语音区间，再结合说话人信息分段，使用语音识别模型转写，最后供用户试听和校对。我们关注的输出不仅是识别文字，还包括标点、英文大小写、数字表达的规范化，以及分段边界处的正确拼接；这些环节需要分别验证，不能把格式改善等同于识别准确率提高，也不能跨说话人或无关语境误拼内容。
+SayAgain 在本地检测语音区间、按候选说话人分段，再转写为文字，供用户试听和校对。语音识别采用 [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，通过 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 运行 ONNX 模型。
 
-语音识别的来源模型是 [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，通过 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 运行相应的 ONNX 制品。SenseVoice 提供逆文本规范化（ITN）选项，将部分口语表达转换为更适合阅读的书面形式；具体权重、转换版本和运行设置会影响实际输出。现阶段暂缓模型版本选型与效果优劣的结论，标点、大小写和数字拼接作为后续验证目标，不在此承诺已全面实现。
+本次测试中，官方通用 INT8 模型直接输出了标点、英文大小写和部分数字的书面形式。其中，ITN（逆文本规范化）用于将部分口语表达转换为书面形式。这些能力由上游模型提供；具体表现受模型版本、运行设置和音频内容影响。SayAgain 会继续验证日期、金额、小数、百分比、长数字及分段衔接的表现。
 
-### 上游模型能力与 PatchX FreeNote 商业化产品
+### PatchX FreeNote 产品与模型来源
 
-SenseVoiceSmall 是上游语音识别模型，sherpa-onnx 提供相应导出文件与推理工具。本次官方通用 INT8 模型的直接推理已呈现标点、英文大小写和部分数字规范化；这些已验证能力来自上游模型及其 ITN 设置。FreeNote 也将这套模型用在了自己的商业化录音产品中。
+PatchX FreeNote 也使用了这套上游模型，并在此基础上集成录音硬件与应用，形成商业化产品。
 
-本次核验的 PatchxNote 1.0.2（21）内置包名为 `patchnote-standard-0.2.0`，其中 `model.int8.onnx` 与 sherpa-onnx 官方 `2024-07-17` 通用 INT8 文件大小及完整 SHA-256 一致。也就是说，**这份内置样本用的就是相同的官方通用模型文件**；应用包名不同，请注意。文件指纹、来源和核验范围见 [模型来源证据](docs/model-provenance.md)。结论限于已核验文件，其他版本、云端模型和应用前后处理分别核对。
+本次核验的是 **PatchxNote 1.0.2（21）**，内置模型包名为 `patchnote-standard-0.2.0`。其中的 `model.int8.onnx` 与 sherpa-onnx 官方 `2024-07-17` 通用 INT8 文件大小及完整 SHA-256 一致，**使用的是同一份官方通用模型文件**。应用包名不同，请注意。标点、英文大小写及部分数字规范化在上述官方模型的直接推理中已有体现。
 
-**产品推荐 · PatchX FreeNote**：需要随身录音设备的用户，可以[前往官方页面了解产品与购买方式](https://freenote.patch-x.cn/download/)，通过页面内「购买录音卡」查看。推荐的是基于上游模型集成的商业化录音产品；上述样本的标点等模型能力来自官方通用模型，不应将产品包名或展示效果理解为独立微调的证明。
+文件指纹与下载来源见 [模型来源证据](docs/model-provenance.md)。此结论对应已核验的版本与文件，其他版本、云端模型及应用前后处理另行核对。
 
-<a href="https://freenote.patch-x.cn/download/"><img src="docs/images/patchx-freenote-promo.png" width="720" alt="PatchX FreeNote 录音卡产品展示；已核验的内置识别模型与官方通用版一致"></a>
+**产品推荐 · PatchX FreeNote**：如果需要随身录音设备，可以[前往官方页面了解产品与购买方式](https://freenote.patch-x.cn/download/)，通过「购买录音卡」查看。这里推荐的是其录音硬件与应用产品；所核验的内置识别模型来源如上。
 
-图片为产品宣传素材；模型来源以本项目的文件核验证据为准。应用集成、硬件体验与上游模型能力分开评价，不据此承诺整体识别质量。
+<a href="https://freenote.patch-x.cn/download/"><img src="docs/images/patchx-freenote-promo.png" width="720" alt="PatchX FreeNote 录音卡产品展示，点击了解产品与购买方式"></a>
+
+*图片为产品宣传素材，具体产品信息以官方页面为准。*
 
 ## 本地优先
 
