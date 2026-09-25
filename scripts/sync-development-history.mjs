@@ -14,7 +14,9 @@ for (const entry of entries) {
   if (Number.isNaN(+instant) || instant.toISOString().slice(0, 16).replace('T', ' ') !== entry.time)
     throw new Error(`Invalid date: ${entry.time}`);
 }
-entries.sort((a, b) => a.time.localeCompare(b.time));
+// A deterministic tie-break prevents reverse chronology from flipping entries
+// on every generation when two tasks record work in the same minute.
+entries.sort((a, b) => a.time.localeCompare(b.time) || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0));
 const counts = new Map();
 for (const entry of entries) {
   const day = entry.time.slice(0, 10);
