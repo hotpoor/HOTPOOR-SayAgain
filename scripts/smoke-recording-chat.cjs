@@ -61,6 +61,7 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
  // Follow is opt-in, seeks the current clip into view, and manual browsing releases it.
  const follow=page.locator('[data-source-follow]').first();assert.equal(await follow.getAttribute('aria-pressed'),'false');await follow.click();
  await page.waitForFunction(()=>{const vp=document.querySelector('.conversation-source-clips');return vp.scrollTop>vp.scrollHeight-vp.clientHeight-20;});assert.equal(await follow.getAttribute('aria-pressed'),'true');
+ await page.waitForFunction(()=>{const slider=document.querySelector('[data-scroll-position]'),mark=document.querySelector('[data-playback-marker]'),r=slider.getBoundingClientRect(),radius=8*r.height/slider.offsetHeight,centre=r.top+radius+Number(slider.value)/1000*(r.height-2*radius);return Math.abs(mark.getBoundingClientRect().top+1-centre)<2;});
  await follow.click();await viewport.evaluate(el=>el.scrollTop=0);await page.locator('[data-chat-audio]').last().evaluate(el=>el.dispatchEvent(new Event('timeupdate')));await page.waitForTimeout(80);assert.equal(await viewport.evaluate(el=>el.scrollTop),0);
  await follow.click();await viewport.hover();await page.mouse.wheel(0,-100);await page.waitForFunction(()=>document.querySelector('[data-source-follow]').getAttribute('aria-pressed')==='false');await page.locator('[data-scroll-top]').click();
  // SVG zoom recomputes bins while the playback cursor stays on the same time.

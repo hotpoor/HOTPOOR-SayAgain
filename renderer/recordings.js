@@ -213,8 +213,11 @@ window.recordingPage=(()=>{
     marker.hidden=!row||!group.open;if(marker.hidden)return;
     const c=clipById.get(row.dataset.clip),rect=row.getBoundingClientRect(),bounds=viewport.getBoundingClientRect(),railBounds=rail.getBoundingClientRect(),trackBounds=track.getBoundingClientRect(),fraction=Math.max(0,Math.min(1,(playbackTime-(c.body.source_offset_ms||0))/Math.max(1,c.body.duration_ms))),displayScale=bounds.height/viewport.clientHeight||1,contentY=(rect.top-bounds.top+rect.height*fraction)/displayScale+viewport.scrollTop;
     // An overflowing list is a minimap; a fully visible list aligns directly with its row.
-    if(follow){const target=Math.max(0,Math.min(viewport.scrollHeight-viewport.clientHeight,contentY-viewport.clientHeight/2));if(Math.abs(viewport.scrollTop-target)>.5)viewport.scrollTop=target;}
-    const screenY=viewport.scrollHeight>viewport.clientHeight+1?trackBounds.top+Math.max(0,Math.min(1,contentY/viewport.scrollHeight))*trackBounds.height:bounds.top+contentY*displayScale;
+    const maxScroll=Math.max(0,viewport.scrollHeight-viewport.clientHeight),target=Math.max(0,Math.min(maxScroll,contentY-viewport.clientHeight/2));
+    if(follow&&Math.abs(viewport.scrollTop-target)>.5)viewport.scrollTop=target;
+    // Both the native range value and the red line use the thumb centre's travel, not the outside edges.
+    const sliderBounds=browseSlider.getBoundingClientRect(),sliderScale=sliderBounds.height/browseSlider.offsetHeight||1,radius=(parseFloat(getComputedStyle(browseSlider).getPropertyValue('--scroll-thumb-size'))||16)/2*sliderScale;
+    const screenY=maxScroll>1?sliderBounds.top+radius+(target/maxScroll)*Math.max(0,sliderBounds.height-2*radius):bounds.top+contentY*displayScale;
     const railScale=railBounds.height/rail.offsetHeight||1;
     marker.style.top=Math.max(1,Math.min(rail.offsetHeight-1,(screenY-railBounds.top)/railScale))+'px';marker.title='播放位置 · '+view.time(playbackTime).slice(0,8);
    };

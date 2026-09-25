@@ -1263,3 +1263,8 @@ dialog { overflow:hidden; }
 .source-follow{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:30px;padding:6px;border:1px solid #ddd;border-radius:7px;background:#fff;color:#6c7178}
 .source-follow[aria-pressed="true"]{background:#292929;border-color:#292929;color:#fff}
 .source-follow:focus-visible{outline:2px solid #7b838e;outline-offset:2px}
+
+.source-scroll-track input[type=range]{--scroll-thumb-size:16px;appearance:none;-webkit-appearance:none;width:16px;border:0;border-radius:0;background:transparent;outline-offset:3px}
+.source-scroll-track input[type=range]::-webkit-slider-runnable-track{width:4px;height:100%;border-radius:2px;background:#dedfe1}
+.source-scroll-track input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:var(--scroll-thumb-size);height:var(--scroll-thumb-size);margin-left:-6px;border:0;border-radius:50%;background:#6c7178}
+.source-scroll-track input[type=range]:disabled::-webkit-slider-thumb{background:#c9c9c9}
