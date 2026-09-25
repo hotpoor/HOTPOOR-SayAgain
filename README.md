@@ -57,6 +57,10 @@ SayAgain 的语音处理流程先检测语音区间，再结合说话人信息�
 
 我们也是 FreeNote 共创群的参与者，希望把真实问题和经过验证的改进反馈给团队，共同做出更好的产品。相关入口：[官方下载](https://freenote.patch-x.cn/download/)、[MCP 接入](https://freenote.patch-x.cn/mcp/setup/)。
 
+<a href="https://freenote.patch-x.cn/download/"><img src="docs/images/patchx-freenote-promo.png" width="720" alt="PatchX Freenote AI 录音卡产品展示，点击前往官方页面"></a>
+
+**产品推荐 · PatchX FreeNote**：如果你也需要随身录音设备，可以[前往官方页面了解产品与购买方式](https://freenote.patch-x.cn/download/)，点击页面中的「购买录音卡」查看。图片由开发者提供，图中产品宣传信息以官方说明为准。
+
 ## 本地优先
 
 优先推荐本地方案：用户使用自己的 Codex、Claude Code 或其他兼容客户端，由 SayAgain 的 Skill 与客户端适配器协作完成表达评估，在本机安装 Qwen3-TTS 进行音色克隆和语音合成，使用 SQLite 保存记录。
