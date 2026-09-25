@@ -29,7 +29,7 @@ test('speaker avatar persists through note updates and can be removed',t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-avatar-')),s=new Service(dir);t.after(()=>{s.close();fs.rmSync(dir,{recursive:true,force:true});});
  let session=s.createRecording({title:'avatar'});s.store.put({type:'recording_clip',profile_id:s.profileId,recording_id:session.block_id,speaker:'A'});
  const save=extra=>session=s.updateRecordingSpeaker({id:session.block_id,revision:session.body.revision,key:'A',name:'A',note:'',...extra});
- const avatar='data:image/png;base64,iVBORw0KGgo=';save({avatar});assert.equal(session.body.speaker_profiles[0].avatar,avatar);
- save({note:'note'});assert.equal(session.body.speaker_profiles[0].avatar,avatar);
+ const avatar='data:image/png;base64,iVBORw0KGgo=';save({avatar});assert.equal(s.state().recordings.find(r=>r.block_id===session.block_id).body.speaker_profiles[0].avatar,avatar);
+ save({note:'note'});assert.equal(s.state().recordings.find(r=>r.block_id===session.block_id).body.speaker_profiles[0].avatar,avatar);
  assert.throws(()=>save({avatar:'https://example.com/a.png'}),/头像/);save({avatar:''});assert.equal(session.body.speaker_profiles[0].avatar,undefined);
 });

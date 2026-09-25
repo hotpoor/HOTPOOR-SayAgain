@@ -25,8 +25,9 @@ class Service {
   }
   config() { return this.store.list('learning_config')[0]; }
   state() {
-    const people=this.store.list('recording_person').filter(p=>p.body.profile_id===this.profileId),byId=new Map(people.map(p=>[p.block_id,p]));
-    const recordings=this.store.list('recording').map(s=>({...s,body:{...s.body,speaker_profiles:(s.body.speaker_profiles||[]).map(p=>{const person=byId.get(p.person_id);return person?{...p,name:person.body.name,note:person.body.note,avatar:p.avatar_override||person.body.avatar,person_avatar:person.body.avatar,person_revision:person.body.revision}:p;})}}));
+    const avatar=value=>require('./recording-avatars.cjs').read(this.directory,value);
+    const people=this.store.list('recording_person').filter(p=>p.body.profile_id===this.profileId).map(p=>({...p,body:{...p.body,avatar:avatar(p.body.avatar),avatars:(p.body.avatars||[]).map(avatar)}})),byId=new Map(people.map(p=>[p.block_id,p]));
+    const recordings=this.store.list('recording').map(s=>({...s,body:{...s.body,speaker_profiles:(s.body.speaker_profiles||[]).map(p=>{const person=byId.get(p.person_id);return person?{...p,name:person.body.name,note:person.body.note,avatar:avatar(p.avatar_override)||person.body.avatar,person_avatar:person.body.avatar,person_revision:person.body.revision}:{...p,avatar:avatar(p.avatar)};})}}));
     return { recording_people:people,recordings,recording_sources:this.store.list('recording_source'),recording_clips:this.store.list('recording_clip').filter(c=>c.body.status!=='archived'),config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), directory: this.directory };
   }
   entity(id, type) {
@@ -34,7 +35,7 @@ class Service {
     if (!entity || entity.body.type !== type) throw new Error('记录不存在');
     return entity;
   }
-  update(record, changes) { return this.store.put({ ...record.body, ...changes }, { id: record.block_id, expectedRevision: record.body.revision }); }
+  update(record, changes) { return this.store.put(require('./recording-avatars.cjs').normalize(this.directory,{ ...record.body, ...changes }), { id: record.block_id, expectedRevision: record.body.revision }); }
   saveSettings(input) {
     const native = language(input.native_language), target = language(input.target_language);
     if (native === target) throw new Error('母语和目标语言需要不同');

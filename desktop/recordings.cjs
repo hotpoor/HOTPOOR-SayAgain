@@ -11,17 +11,16 @@ module.exports=Service=>{
   const view=require('../renderer/recording-view.js');
   if(!(session.body.speaker_profiles||[]).some(p=>p.key===input.key)&&!clips.some(c=>view.keys(c).includes(input.key)))throw Error('此会话没有该说话人');
   const previous=(session.body.speaker_profiles||[]).find(p=>p.key===input.key);
-  const avatar=input.avatar===undefined?(previous?.avatar||''):input.avatar;
-  if(typeof avatar!=='string'||avatar.length>400000||(avatar&&!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)))throw Error('头像需为本地 PNG、JPEG 或 WebP 图片');
+  const avatar=require('./recording-avatars.cjs').save(this.directory,input.avatar===undefined?(previous?.avatar||''):input.avatar);
   if(previous?.person_id){
    const person=this.entity(previous.person_id,'recording_person');
    if(person.body.revision!==input.person_revision)throw Error('人物资料已更新，请刷新后重试');
    if(!input.name.trim())throw Error('人物名称不能为空');
    return this.store.transaction(()=>{
-    const avatars=[...new Set([person.body.avatar,...(person.body.avatars||[]),input.avatar].filter(Boolean))];
+    const avatars=[...new Set([person.body.avatar,...(person.body.avatars||[]),input.avatar===undefined?undefined:avatar].filter(Boolean))];
     if(avatars.length>100)throw Error('每个人物最多保存100张头像');
     this.update(person,{name:input.name.trim(),note:input.note.trim(),avatars});
-    const speaker_profiles=(session.body.speaker_profiles||[]).map(p=>p.key===input.key&&input.avatar!==undefined?{...p,avatar_override:input.avatar||null}:p);
+    const speaker_profiles=(session.body.speaker_profiles||[]).map(p=>p.key===input.key&&input.avatar!==undefined?{...p,avatar_override:avatar||null}:p);
     return this.update(session,{speaker_profiles});
    });
   }

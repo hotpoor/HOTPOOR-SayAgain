@@ -27,3 +27,17 @@ test('invalid or stale identity links roll back without creating people',t=>{
  assert.throws(()=>s.linkRecordingPerson({id:a.block_id,revision:a.body.revision,key:'B',action:'unlink'}),/更新/);
  const current=s.state().recordings[0];assert.throws(()=>s.updateRecordingSpeaker({id:current.block_id,revision:current.body.revision,key:'B',name:'Alice',note:'',person_revision:0}),/更新/);
 });
+
+test('large legacy PNG links without exceeding entity limits, galleries dedupe and survive backup',t=>{
+ const {s,make}=setup(t),{randomBytes}=require('node:crypto'),{deflateSync,crc32}=require('node:zlib');
+ function png(){const chunk=(type,data)=>{const kind=Buffer.from(type),size=Buffer.alloc(4),crc=Buffer.alloc(4);size.writeUInt32BE(data.length);crc.writeUInt32BE(crc32(Buffer.concat([kind,data])));return Buffer.concat([size,kind,data,crc]);};const header=Buffer.alloc(13);header.writeUInt32BE(192,0);header.writeUInt32BE(192,4);header[8]=8;header[9]=6;const rows=[];for(let i=0;i<192;i++)rows.push(Buffer.concat([Buffer.alloc(1),randomBytes(192*4)]));return 'data:image/png;base64,'+Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',header),chunk('IDAT',deflateSync(Buffer.concat(rows))),chunk('IEND',Buffer.alloc(0))]).toString('base64');}
+ const first=png(),second=png();assert(first.length>190000);
+ let session=make('legacy');session=s.store.put({...session.body,speaker_profiles:[{key:'A',name:'Alice',note:'',avatar:first}]},{id:session.block_id,expectedRevision:session.body.revision});
+ session=s.linkRecordingPerson({id:session.block_id,revision:session.body.revision,key:'A',action:'create',name:'Alice',note:''});
+ const person=s.state().recording_people[0];assert.equal(person.body.avatar,first);assert.equal(person.body.avatars.length,1);
+ const input=()=>{const session=s.state().recordings[0];return{id:session.block_id,revision:session.body.revision,key:'A',name:'Alice',note:'',person_revision:session.body.speaker_profiles[0].person_revision};};
+ s.updateRecordingSpeaker({...input(),avatar:second});s.updateRecordingSpeaker({...input(),avatar:first});
+ assert.equal(s.state().recording_people[0].body.avatars.length,2);assert.equal(fs.readdirSync(path.join(s.directory,'assets')).filter(n=>n.startsWith('avatar-')).length,2);
+ for(const record of [...s.store.list('recording'),...s.store.list('recording_person')])assert(Buffer.byteLength(JSON.stringify(record.body))<10000);
+ const backupRoot=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-avatar-backup-'));t.after(()=>fs.rmSync(backupRoot,{recursive:true,force:true}));const backup=s.backup(path.join(backupRoot,'snapshot'));const restored=new Service(backup);try{assert.equal(restored.state().recording_people[0].body.avatars.length,2);assert.equal(restored.state().recordings[0].body.speaker_profiles[0].avatar,first);}finally{restored.close();}
+});
