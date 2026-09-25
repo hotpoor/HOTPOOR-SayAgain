@@ -11,7 +11,7 @@ Requirements: Node.js 22 or later, local command execution, and SayAgain running
 
 For a different application data directory set `SAYAGAIN_DATA_DIR` to its absolute directory, or `SAYAGAIN_CONNECTION_FILE` to the local descriptor file. Tokens are read internally; never copy that descriptor into this package or share it with another user. On another computer install SayAgain there and use that computer's own data and connection.
 
-Ongoing review must be enabled for the conversation by the user. `scripts/prompt-hook.cjs` is an optional host reminder, not an installed hook or a guarantee of every-turn execution.
+For continued use, offer conversation-only, a specified workspace, or all workspaces and follow [persistent review setup](persistence.md). Once the user selects workspace/global scope, save the preference in the host's effective instructions; do not stop at copying the Skill. Honor scope choices already given. Verify saved instructions, fresh-session loading, connectivity and evaluation receipts separately. `scripts/prompt-hook.cjs` remains an optional host reminder, not an installed hook or a guarantee of every-turn execution.
 
 Local model helpers included in this folder:
 
