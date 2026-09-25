@@ -2,6 +2,7 @@ const api = window.sayagain;
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const paths = {
+ top:'M12 20V5m-6 6 6-6 6 6M5 3h14',
  person:'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2',
   volume:'M3 9h4l5-4v14l-5-4H3V9Zm13-2a7 7 0 0 1 0 10m-2-7a3 3 0 0 1 0 4',
   mute:'M3 9h4l5-4v14l-5-4H3V9Zm13 0 5 6m0-6-5 6',
@@ -83,7 +84,7 @@ function renderOnboarding() {
 function heading(kicker,title,description,button='') { return `<div class="page-heading"><div><div class="heading-kicker">${kicker}</div><h1>${title}</h1><p>${description}</p></div>${button}</div>`; }
 let reviewTimeline;
 function renderReview() {
-  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选" title="按语言对查看，句数随搜索和记录筛选更新"></select><span class="count-label" id="results-count"></span></div><div id="review-timeline"></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
+  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar review-searchbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选" title="按语言对查看，句数随搜索和记录筛选更新"></select><span class="count-label" id="results-count"></span></div><div id="review-timeline"></div><div id="entries"></div><button type="button" class="review-back-top icon-button" data-action="review-back-top" aria-label="回到顶部" title="回到顶部">${icon('top')}</button><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
   $('#review-filter').value = filter;
   reviewTimeline=window.libraryTimeline.setup($('#review-timeline'),{unit:'条表达',onChange:renderReviewResults});
   renderEntries();
@@ -359,6 +360,7 @@ document.addEventListener('click', async event => {
     if (button.dataset.page) { state=await api.state();page=button.dataset.page;filter='active';render();window.scrollTo(0,0);$('#main').scrollTop=0;return; }
     const id = button.dataset.id;
     switch(button.dataset.action) {
+      case 'review-back-top': $('#main').scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); break;
       case 'sidebar': {
         if(innerWidth<=760) document.body.classList.toggle('mobile-open'); else document.body.classList.toggle('collapsed');
         const closed = innerWidth<=760 ? !document.body.classList.contains('mobile-open') : document.body.classList.contains('collapsed');
