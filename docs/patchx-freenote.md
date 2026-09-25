@@ -4,7 +4,7 @@
 
 ## 商业化产品与上游能力
 
-FreeNote 将 SenseVoiceSmall 集成到商业化录音产品中。本次官方通用 INT8 模型的直接推理已经呈现标点、英文大小写和部分数字规范化，这些已验证能力应归于上游模型及 ITN 设置；不能将它们当作 FreeNote 独立微调的成果。
+FreeNote 将 SenseVoiceSmall 集成到商业化录音产品中。本次官方通用 INT8 模型的直接推理已经呈现标点、英文大小写和部分数字规范化，这些已验证能力应归于上游模型及 ITN 设置。
 
 本次核验的 PatchxNote 1.0.2（21）使用 `patchnote-standard-0.2.0` 包名，其中 SenseVoice ONNX 文件与官方 sherpa-onnx `2024-07-17` 通用 INT8 文件大小及完整 SHA-256 一致。这份样本使用的就是相同的官方通用模型文件。模型包命名、应用集成和模型训练来源须分别说明。
 
