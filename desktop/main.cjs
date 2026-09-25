@@ -26,6 +26,8 @@ else {
     const brandIcon=nativeImage.createFromPath(iconPath);
     if(!brandIcon.isEmpty()&&process.platform==='darwin')app.dock.setIcon(brandIcon);
     app.setAboutPanelOptions({applicationName:'SayAgain',applicationVersion:app.getVersion(),credits:'Created by HOTPOOR XIALIWEI',iconPath});
+    const screenshots = require('./screenshot/index.cjs').createScreenCapture({directory: app.getPath('userData'), title: 'HOTPOOR SayAgain', defaultPriority: 50});
+    ipcMain.handle('sayagain:screenshotSettings', event => { if (!trusted(event)) throw Error('无效的页面来源'); return screenshots.openSettings(); });
     service = new Service(path.join(app.getPath('userData'), 'data'));
     const changed=()=>{if(win&&!win.isDestroyed())win.webContents.send('sayagain:data-changed');};
     bridge=await startBridge(service,app.getPath('userData'),changed);
@@ -116,10 +118,11 @@ else {
     });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+      { label: '截图', submenu: [{label: '截图与快捷键…', click: () => screenshots.openSettings()}] },
       { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },
     ]));
     await createWindow();
-    app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
+    app.on('activate', () => { if (!win || win.isDestroyed()) createWindow(); });
   }).catch(error => { dialog.showErrorBox('SayAgain 无法启动', error.message); app.quit(); });
 }
 async function createWindow() {

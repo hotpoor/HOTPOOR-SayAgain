@@ -29,3 +29,6 @@ sayagain-connection.json
 
 *.secret
 *.secret.tmp
+
+# Generated macOS screenshot helper
+/desktop/screenshot/bin/

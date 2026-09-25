@@ -13,7 +13,12 @@
     "docs:check": "node scripts/sync-development-history.mjs --check",
     "tts:check": "node scripts/setup-tts.cjs",
     "tts:install": "node scripts/setup-tts.cjs --install",
-    "skill:context": "node skills/sayagain/scripts/client.cjs context"
+    "skill:context": "node skills/sayagain/scripts/client.cjs context",
+    "build:capture": "node desktop/screenshot/build.cjs",
+    "prestart": "npm run build:capture",
+    "predev": "npm run build:capture",
+    "test:capture": "node --test desktop/screenshot/*.test.cjs",
+    "test:capture:desktop": "npm run build:capture && node desktop/screenshot/smoke.cjs"
   },
   "engines": {
     "node": ">=22.13.0"

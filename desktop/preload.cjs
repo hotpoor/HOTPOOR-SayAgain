@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('sayagain', {
   addExpression: invoke('addExpression'), editExpression: invoke('editExpression'),
   saveVoice: invoke('saveVoice'), archiveVoice: invoke('archiveVoice'),
   defaultVoice: invoke('defaultVoice'), defaultSample: invoke('defaultSample'), addSample: invoke('addSample'),
+  screenshotSettings: invoke('screenshotSettings'),
   modelEvidenceSource: invoke('modelEvidenceSource'),
   modelEvidenceCopy: invoke('modelEvidenceCopy'),
   fullscreen: invoke('fullscreen'), backup: invoke('backup'),
