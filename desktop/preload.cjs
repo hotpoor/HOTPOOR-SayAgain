@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const invoke = method => value => ipcRenderer.invoke(`sayagain:${method}`, value);
 contextBridge.exposeInMainWorld('sayagain', {
- linkRecordingPerson:invoke('linkRecordingPerson'),updateRecordingSpeaker:invoke('updateRecordingSpeaker'),speakerPipeline:invoke('speakerPipeline'),confirmRecordingTurns:invoke('confirmRecordingTurns'),
+ saveRecordingPerson:invoke('saveRecordingPerson'),linkRecordingPerson:invoke('linkRecordingPerson'),updateRecordingSpeaker:invoke('updateRecordingSpeaker'),speakerPipeline:invoke('speakerPipeline'),confirmRecordingTurns:invoke('confirmRecordingTurns'),
   reanalyzeRecording:invoke('reanalyzeRecording'),
   clearRecordingAnalysis:invoke('clearRecordingAnalysis'),
   onRecordingImportProgress:callback=>{const handler=(_event,value)=>callback(value);ipcRenderer.on('sayagain:recording-import-progress',handler);return()=>ipcRenderer.removeListener('sayagain:recording-import-progress',handler);},

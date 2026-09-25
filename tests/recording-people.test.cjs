@@ -41,3 +41,20 @@ test('large legacy PNG links without exceeding entity limits, galleries dedupe a
  for(const record of [...s.store.list('recording'),...s.store.list('recording_person')])assert(Buffer.byteLength(JSON.stringify(record.body))<10000);
  const backupRoot=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-avatar-backup-'));t.after(()=>fs.rmSync(backupRoot,{recursive:true,force:true}));const backup=s.backup(path.join(backupRoot,'snapshot'));const restored=new Service(backup);try{assert.equal(restored.state().recording_people[0].body.avatars.length,2);assert.equal(restored.state().recordings[0].body.speaker_profiles[0].avatar,first);}finally{restored.close();}
 });
+test('person default colors propagate while per-speaker colors stay local and can be reset',t=>{
+ const {s,make,dir}=setup(t),a=make('one'),b=make('two');let person=s.saveRecordingPerson({name:'Alice',note:'Host',color:'#AA3300'});
+ for(const session of [a,b])s.linkRecordingPerson({id:session.block_id,revision:session.body.revision,key:'A',person_id:person.block_id});
+ const profile=id=>s.state().recordings.find(x=>x.block_id===id).body.speaker_profiles.find(p=>p.key==='A');
+ assert.equal(profile(a.block_id).color,'#aa3300');assert.equal(profile(b.block_id).color,'#aa3300');
+ const save=color=>{const session=s.state().recordings.find(x=>x.block_id===a.block_id);return s.updateRecordingSpeaker({id:a.block_id,revision:session.body.revision,key:'A',name:'Alice',note:'Host',person_revision:profile(a.block_id).person_revision,color});};
+ save('#0044ff');person=s.state().recording_people[0];s.saveRecordingPerson({id:person.block_id,revision:person.body.revision,name:'Alice',note:'Host',color:'#22aa66'});
+ assert.equal(profile(a.block_id).color,'#0044ff');assert.equal(profile(b.block_id).color,'#22aa66');save(null);assert.equal(profile(a.block_id).color,'#22aa66');
+ const reopened=new Service(dir);try{assert.equal(reopened.state().recordings.find(x=>x.block_id===a.block_id).body.speaker_profiles[0].color,'#22aa66');}finally{reopened.close();}
+ const current=s.state().recording_people[0];assert.throws(()=>s.saveRecordingPerson({id:current.block_id,revision:0,name:'Alice',note:'',color:'#123456'}),/更新/);
+ assert.throws(()=>s.saveRecordingPerson({name:'Invalid',note:'',color:'red;fill:url(x)'}),/颜色/);assert.equal(s.state().recording_people.length,1);
+});
+test('person library can create and change a default avatar without replacing local overrides',t=>{
+ const {s,make}=setup(t);let person=s.saveRecordingPerson({name:'Library person',note:'',color:'#123456',avatar:avatar('one')}),a=make('one');a=s.linkRecordingPerson({id:a.block_id,revision:a.body.revision,key:'A',person_id:person.block_id});
+ person=s.state().recording_people[0];s.saveRecordingPerson({id:person.block_id,revision:person.body.revision,name:'Updated person',note:'updated',color:'#654321',avatar:avatar('two')});
+ const state=s.state();assert.equal(state.recording_people[0].body.avatars.length,2);assert.equal(state.recordings[0].body.speaker_profiles[0].avatar,avatar('two'));assert.equal(state.recordings[0].body.speaker_profiles[0].name,'Updated person');
+});

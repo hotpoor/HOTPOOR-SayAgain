@@ -11,6 +11,7 @@ module.exports=Service=>{
   const view=require('../renderer/recording-view.js');
   if(!(session.body.speaker_profiles||[]).some(p=>p.key===input.key)&&!clips.some(c=>view.keys(c).includes(input.key)))throw Error('此会话没有该说话人');
   const previous=(session.body.speaker_profiles||[]).find(p=>p.key===input.key);
+  const color=input.color===undefined?previous?.color:require('./recording-colors.cjs')(input.color);
   const avatar=require('./recording-avatars.cjs').save(this.directory,input.avatar===undefined?(previous?.avatar||''):input.avatar);
   if(previous?.person_id){
    const person=this.entity(previous.person_id,'recording_person');
@@ -20,12 +21,12 @@ module.exports=Service=>{
     const avatars=[...new Set([person.body.avatar,...(person.body.avatars||[]),input.avatar===undefined?undefined:avatar].filter(Boolean))];
     if(avatars.length>100)throw Error('每个人物最多保存100张头像');
     this.update(person,{name:input.name.trim(),note:input.note.trim(),avatars});
-    const speaker_profiles=(session.body.speaker_profiles||[]).map(p=>p.key===input.key&&input.avatar!==undefined?{...p,avatar_override:avatar||null}:p);
+    const speaker_profiles=(session.body.speaker_profiles||[]).map(p=>p.key===input.key?{...p,...(input.avatar!==undefined?{avatar_override:avatar||null}:{}),...(input.color!==undefined?{color_override:color}:{} )}:p);
     return this.update(session,{speaker_profiles});
    });
   }
   const profiles=(session.body.speaker_profiles||[]).filter(p=>p.key!==input.key);
-  if(input.name.trim()||input.note.trim()||avatar)profiles.push({key:input.key,name:input.name.trim(),note:input.note.trim(),...(avatar?{avatar}:{})});
+  if(input.name.trim()||input.note.trim()||avatar||color)profiles.push({key:input.key,name:input.name.trim(),note:input.note.trim(),...(avatar?{avatar}:{}),...(color?{color}:{})});
   return this.update(session,{speaker_profiles:profiles});
  };
 

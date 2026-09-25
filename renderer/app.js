@@ -2,6 +2,7 @@ const api = window.sayagain;
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const paths = {
+ person:'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2',
   volume:'M3 9h4l5-4v14l-5-4H3V9Zm13-2a7 7 0 0 1 0 10m-2-7a3 3 0 0 1 0 4',
   mute:'M3 9h4l5-4v14l-5-4H3V9Zm13 0 5 6m0-6-5 6',
   eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
@@ -57,15 +58,17 @@ function stopPlayer() {
 }
 function render() {
   stopPlayer();
+  if(page!=='recordings')window.recordingPage.leave();
   const speechLabel=state.speech.config.body.mode==='cloud'?state.speech.cloud_models.find(m=>m.id===state.speech.cloud_model)?.label:'本地 Qwen3-TTS';
   $('#speech-defaults-label').textContent=speechLabel||'语音设置';
   $('#speech-defaults').title='语音设置 · '+(speechLabel||'尚未配置')+(currentSpeechDefaults()?' · 直接生成':' · 生成前确认');
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的录音',settings:'设置'}[page];
+  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的音频',people:'人物形象',settings:'设置'}[page];
   if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
+  if (page === 'people') window.peoplePage.render($('#main'),state,refresh);
   if (page === 'voices') renderVoices();
   if (page === 'recordings') window.recordingPage.render($('#main'),state);
   if (page === 'settings') renderSettings();

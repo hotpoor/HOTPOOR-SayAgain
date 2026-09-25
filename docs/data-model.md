@@ -110,3 +110,7 @@ SQLite 的 ATTACH 多库崩溃原子性要求 main 不为内存库且不使用 W
 会话 `speaker_profiles` 中的每个机器标签可显式指定 `person_id`，可选 `avatar_override` 表示仅此 Speaker 的头像。读取 state 时解析人物姓名、备注、默认头像和人物 revision；不把姓名复制到各段识别结果。修改人物姓名/备注对所有引用生效；上传或选择头像更新当前覆盖值并收入人物头像集合，不修改其他引用或人物默认头像。解除关联时保留当时的显示资料为本地备注。关联与资料更新使用版本检查和事务；不按同名或模型标签自动合并人物。
 
 头像以内容哈希命名保存到 `assets/avatar-<sha256>.<ext>`，人物及 Speaker 字段存 `avatar:<sha256>.<ext>` 引用；默认图、图库和本次覆盖共用同一文件。读取 state 时解析为可显示图片，兼容旧版内嵌 data URL；相关记录保存时转换为文件引用。保留单条实体256 KiB限制，备份连同 assets 一起复制，不再把重复的 Base64 图像累计在人物或会话 JSON 中。
+
+### 人物默认波形颜色与本次覆盖
+
+`recording_person.color` 保存人物默认六位十六进制颜色（可为空）；`speaker_profiles.color_override` 是已关联 Speaker 的本次覆盖，未关联 Speaker 使用 `color`。返回 UI 的 `color` 为覆盖色或人物默认色，均无设置时按人物 ID / Speaker 标签稳定配色。修改默认颜色不会覆盖本次颜色。关联与解除关联保留显式本地颜色。人物页面通过带 revision 的 `saveRecordingPerson` 更新默认资料、颜色和头像集合，头像仍独立去重保存。
