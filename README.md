@@ -39,6 +39,11 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 以上是产品目标，具体实现进度见下表。
 
+## 模型验证与合作展示预留
+
+- [SenseVoice 模型对照记录](docs/sensevoice-model-comparison.md)：同一 Windows 环境四组测试，记录文件指纹、原始输出与耗时；尚未切换应用模型。
+- [PatchX Freenote 合作展示预留](docs/patchx-freenote.md)：预留硬件录音广告位和软文位置，待补素材与正式内容；当前为规划占位。
+
 ## 本地优先
 
 优先推荐本地方案：用户使用自己的 Codex、Claude Code 或其他兼容客户端，由 SayAgain 的 Skill 与客户端适配器协作完成表达评估，在本机安装 Qwen3-TTS 进行音色克隆和语音合成，使用 SQLite 保存记录。
