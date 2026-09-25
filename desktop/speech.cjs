@@ -60,13 +60,13 @@ class Speech {
   if(synthesis?.body.status==='succeeded'){try{s.asset(synthesis.body.asset_id);return{...synthesis,cached:true};}catch{}}
   if(synthesis&&['queued','running'].includes(synthesis.body.status))return synthesis;
   synthesis=s.store.transaction(()=>{
-   const body={type:'synthesis',profile_id:s.profileId,expression_id:expression.block_id,content_revision:expression.body.content_revision,text_snapshot:expression.body.improved,voice_id:voice.block_id,voice_revision:voice.body.voice_revision,sample_id:sample.block_id,sample_hash:asset.body.sha256,reference_text:sample.body.transcript,provider:config.mode,model_id:config.mode==='local'?runtime.model_id:selectedModel,model_revision:config.mode==='local'?runtime.revision:selectedModel,language,status:'queued',error:null,cache_key:cache,key_fingerprint:keyFingerprint,links:[{relation:'expression',target_id:expression.block_id},{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'synthesis',key:cache}]};
+   const body={type:'synthesis',profile_id:s.profileId,expression_id:expression.block_id,content_revision:expression.body.content_revision,text_snapshot:expression.body.improved,voice_id:voice.block_id,voice_revision:voice.body.voice_revision,sample_id:sample.block_id,sample_hash:asset.body.sha256,reference_text:sample.body.transcript,provider:config.mode,model_id:config.mode==='local'?runtime.model_id:selectedModel,model_revision:config.mode==='local'?runtime.revision:selectedModel,language,status:'queued',queued_at:Date.now(),started_at:null,completed_at:null,error:null,cache_key:cache,key_fingerprint:keyFingerprint,links:[{relation:'expression',target_id:expression.block_id},{relation:'voice',target_id:voice.block_id},{relation:'sample',target_id:sample.block_id}],dedupe_keys:[{scope:'synthesis',key:cache}]};
    const record=synthesis?s.update(synthesis,body):s.store.put(body);
    s.store.put({type:'job',profile_id:s.profileId,kind:'synthesis',target_id:record.block_id,status:'queued',attempts:1,links:[{relation:'synthesis',target_id:record.block_id}]});return record;
   });
   this.onChange();queueMicrotask(()=>this.drain());return synthesis;
  }
- cancel(input){const s=this.service,record=s.entity(input.id,'synthesis');if(!['queued','running'].includes(record.body.status))return;this.active?.id===input.id&&this.active.controller.abort();s.store.transaction(()=>{s.update(record,{status:'cancelled',error:null});for(const job of s.store.list('job'))if(job.body.target_id===input.id&&['queued','running'].includes(job.body.status))s.update(job,{status:'cancelled'});});this.onChange();}
+ cancel(input){const s=this.service,record=s.entity(input.id,'synthesis');if(!['queued','running'].includes(record.body.status))return;this.active?.id===input.id&&this.active.controller.abort();s.store.transaction(()=>{s.update(record,{status:'cancelled',completed_at:Date.now(),error:null});for(const job of s.store.list('job'))if(job.body.target_id===input.id&&['queued','running'].includes(job.body.status))s.update(job,{status:'cancelled'});});this.onChange();}
  async drain(){
   if(this.busy||this.closed)return;this.busy=true;
   try{while(!this.closed){const job=this.service.store.list('job').reverse().find(j=>j.body.kind==='synthesis'&&j.body.status==='queued');if(!job)break;await this.run(job);}}finally{this.busy=false;this.resolveClose?.();}
@@ -78,7 +78,7 @@ class Speech {
   try{
    const record=s.entity(id,'synthesis'),voice=s.entity(record.body.voice_id,'voice'),sample=s.entity(record.body.sample_id,'voice_sample');
    if(voice.body.status!=='active')throw new Error('音色已归档，任务未执行');
-   s.store.transaction(()=>{s.update(record,{status:'running'});s.update(job,{status:'running',started_at:Date.now()});});this.onChange();
+   s.store.transaction(()=>{s.update(record,{status:'running',started_at:Date.now()});s.update(job,{status:'running',started_at:Date.now()});});this.onChange();
    const reference=s.asset(sample.body.asset_id).filename;
    let bytes;
    if(record.body.provider==='local'){
@@ -142,7 +142,7 @@ class Speech {
    const status=controller.signal.aborted?'cancelled':'failed';
    // Provider response bodies and API keys never enter job logs.
    const message=String(error.message||'合成失败').replace(/sk-[A-Za-z0-9_-]+/g,'[redacted]').slice(0,1000);
-   s.store.transaction(()=>{s.update(s.entity(id,'synthesis'),{status,error:message});s.update(s.entity(job.block_id,'job'),{status,error:message});});
+   s.store.transaction(()=>{s.update(s.entity(id,'synthesis'),{status,completed_at:Date.now(),error:message});s.update(s.entity(job.block_id,'job'),{status,error:message});});
   }finally{if(fs.existsSync(temporary))fs.unlinkSync(temporary);this.active=null;this.onChange();}
  }
  async readLimited(response,max){const chunks=[];let total=0;for await(const chunk of response.body){total+=chunk.length;if(total>max)throw new Error('云端响应超过大小限制');chunks.push(Buffer.from(chunk));}return Buffer.concat(chunks);}

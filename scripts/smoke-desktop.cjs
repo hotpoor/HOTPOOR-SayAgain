@@ -91,7 +91,7 @@ async function launch() {
  await page.locator('#editor [name="reuse_defaults"]').check();await page.locator('#editor [name="cloud_consent"]').check();await page.locator('#save-editor').click();await page.waitForFunction(()=>!document.querySelector('#editor').open);
  assert.equal((await app.evaluate(()=>globalThis.defaultGenerationRequests)).length,0);
  await page.reload();await page.waitForSelector('#pair-filter');await page.locator('#pair-filter').selectOption('all');await page.waitForSelector('.entry');
- await page.locator('[data-action="synthesize"]').first().click();await page.waitForFunction(()=>document.querySelector('#toast').textContent==='已使用默认设置生成语音');
+ await page.locator('[data-action="synthesize"]').first().click();await page.waitForFunction(()=>document.querySelector('#toast').textContent==='已加入生成队列');
  assert.equal(await page.locator('#editor').evaluate(el=>el.open),false);
  const direct=await app.evaluate(()=>globalThis.defaultGenerationRequests);assert.equal(direct.length,1);assert.equal(direct[0].model_id,'qwen-audio-3.1-tts-flash');assert.equal(direct[0].cloud_consent,true);assert(direct[0].voice_id);
  await page.screenshot({path:path.join(output,'speech-defaults-topbar.png')});

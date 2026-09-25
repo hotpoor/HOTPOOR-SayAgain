@@ -58,6 +58,7 @@ function stopPlayer() {
   player = null; playerSampleId = null;
 }
 function render() {
+  window.synthesisQueue.update(state);
   stopPlayer();
   if(page!=='recordings')window.recordingPage.leave();
   const speechLabel=state.speech.config.body.mode==='cloud'?state.speech.cloud_models.find(m=>m.id===state.speech.cloud_model)?.label:'本地 Qwen3-TTS';
@@ -215,7 +216,7 @@ async function generateWithDefaults(id,button){
  state=await api.state();
  const saved=currentSpeechDefaults();
  if(!saved){openDialog('synthesis',id);return;}
- await api.synthesize({expression_id:id,voice_id:saved.voice_id,model_id:saved.model_id,cloud_consent:saved.cloud_consent});await refresh();notify('已使用默认设置生成语音');}
+ await api.synthesize({expression_id:id,voice_id:saved.voice_id,model_id:saved.model_id,cloud_consent:saved.cloud_consent});await refresh();notify('已加入生成队列');}
  finally{button.disabled=false;}
 }
 function synthesisMarkup(expressionId) {
@@ -454,6 +455,6 @@ document.addEventListener('submit',async event=>{
 editor.addEventListener('close',cleanupRecording);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!editor.open)api.fullscreen(true).catch(()=>{});});
 api.onFullscreen(full=>{const button=$('#fullscreen');button.setAttribute('aria-label',full?'退出全屏':'进入全屏');button.title=button.getAttribute('aria-label');});
-api.onChange(async()=>{try{state=await api.state();if(!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
+api.onChange(async()=>{try{state=await api.state();window.synthesisQueue.update(state);if(!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
 fillIcons();
 refresh().catch(error=>{$('#main').innerHTML=`<div class="page"><h1>无法打开本地数据</h1><p class="form-error">${escapeHtml(errorMessage(error))}</p></div>`;});
