@@ -1,5 +1,11 @@
 # 本地开发与验证
 
+## 当前录音文件开发入口
+
+截至 2026-09-25：录音文件当前走导入 / 停止录音 → VAD → CAMPPlus 与整批 KMeans → 拆条 → SenseVoice 自动转写 → 人工校对。无需先确认候选说话人；重新转写前须保存边界编辑。文件导入使用原生 FFmpeg，单文件上限 2 GiB、单任务最多 4 小时；不要将音色参考样本限制套用于录音文件。代码入口是 `desktop/speaker-pipeline.cjs` 和 `workers/speaker_pipeline.py`。
+
+详细流程见 [录音策略](speaker-pipeline.md)，与 Freenote / PatchxNote 的主要区别和证据边界见 [README 对比章节](../README.md#与-freenote--patchxnote-的录音处理策略对比)。下文早期桌面或音色功能说明不能用来替代当前录音文件策略。
+
 ## 启动
 
 ```sh

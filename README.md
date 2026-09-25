@@ -53,7 +53,7 @@ SayAgain 的语音处理流程先检测语音区间，再结合说话人信息�
 
 ### 感谢 PatchX FreeNote
 
-在开发者的实际使用中，[PatchX FreeNote](https://freenote.patch-x.cn/download/) 的转写呈现给我们留下了良好印象，尤其让我们关注到标点、英文大小写与数字表达对阅读体验的价值。感谢团队在 SenseVoiceSmall 基础上的微调和产品优化，也感谢上游模型作者的工作。这是使用体验与致谢，不作为不同模型的全面性能排名。
+在开发者的实际使用中，[PatchX FreeNote](https://freenote.patch-x.cn/download/) 的转写呈现给我们留下了良好印象，尤其让我们关注到标点、英文大小写与数字表达对阅读体验的价值。感谢团队围绕 SenseVoiceSmall 所做的产品优化，也感谢上游模型作者的工作。本次核验的内置样本与官方通用模型文件一致，详见下方来源证据。这是使用体验与致谢，不作为不同模型的全面性能排名。
 
 我们也是 FreeNote 共创群的参与者，希望把真实问题和经过验证的改进反馈给团队，共同做出更好的产品。相关入口：[官方下载](https://freenote.patch-x.cn/download/)、[MCP 接入](https://freenote.patch-x.cn/mcp/setup/)。
 
@@ -213,6 +213,47 @@ SayAgain 的语音处理流程先检测语音区间，再结合说话人信息�
 | — | [SoundFile 0.14.0](https://python-soundfile.readthedocs.io/)、[soxr 1.1.0](https://python-soxr.readthedocs.io/) | WAV 读写及需要时重采样。完整环境还包括 Requests、PyYAML、pypinyin、SentencePiece 等辅助依赖。 |
 
 模型权重单独登记，不随仓库提交。最小依赖见 [speaker-pipeline-requirements.txt](skills/sayagain/scripts/speaker-pipeline-requirements.txt)，完整旧录音环境见 [recording-requirements.txt](skills/sayagain/scripts/recording-requirements.txt)。VAD、说话人特征、聚类与 ASR 各司其职，候选人数与模型相似度不能直接当作准确率。
+
+### 客户端模型名称与来源证据
+
+「设置 → 语音识别模型」和「我的音频」可查看四个来源：官方通用版、官方粤语微调版、Freenote / PatchxNote 内置样本、闪电说官网推荐的量化版。分别列出应用或发布包标识、公开模型名称、文件大小、完整 SHA-256 与官方来源入口，并可复制指纹。只表述已核验事实：Freenote 也选用了相同的官方通用模型；闪电说此样本是官网指向的官方 ONNX 量化导出，尚未核对其自动下载文件。
+
+说明默认折叠，不触发下载、切换或音频上传；这些是核验样本，不冒充当前电脑的运行模型状态。完整证据见 [模型来源说明](docs/model-provenance.md)。
+
+### 与 Freenote / PatchxNote 的录音处理策略对比
+
+相关说明：[完整录音策略](docs/speaker-pipeline.md) · [Skill 录音与环境说明](skills/sayagain/references/recordings.md) · [开发日志](DEVELOPMENT_LOG.md) · [开发传记](DEVELOPMENT_HISTORY.md)。
+
+截至 2026-09-25，本次核对的 SayAgain Mac 运行实例使用官方发布的 SenseVoice 通用 INT8 模型（sherpa-onnx 导出包 `2024-07-17`）；**Freenote（现名 PatchxNote）也选用了相同的官方通用模型**。两份应用模型与新下载官方包中的 ONNX 文件 SHA-256 均为 `c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51`。版本及下载入口见 [官方模型说明](https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html)。这里陈述共同选型和文件一致性，不将其描述为 Freenote 自研或微调模型，也不据此推断产品之间的技术来源关系。
+
+模型选型相同，应用处理策略仍然不同。以下比较「我的音频」中的录音文件解析，不包含音色克隆与语音合成。此核验仅对应上述本机文件；安装器当前指向的 `2025-09-09` 粤语微调包是另一份模型，其他安装环境须以实际文件指纹为准。
+
+SayAgain 当前流程：
+
+```text
+导入文件 / 停止麦克风录音（同次保存块先拼接）
+→ FFmpeg 转为 16 kHz 单声道 PCM
+→ VAD 检测语音区间
+→ CAMPPlus 提取声纹 → 整批 KMeans 聚类分人与简单平滑
+→ 按候选说话人拆短语音条
+→ SenseVoice INT8 自动转写每条原文
+→ 保存原素材、短条、源内时间与文字 → 人工校对、回放与导出
+```
+
+**当前拆条后自动转写，无需先确认说话人。** 开发日志中「先确认再识别」是早期阶段记录；当前代码显式传入 `transcribe: true`。候选标签仍需人工校对，不代表已确认真人身份。
+
+| 环节 | SayAgain 当前实现 | Freenote / PatchxNote 已发现的机制 |
+| --- | --- | --- |
+| 语音检测 | 优先 Silero；仅有 FSMN 时回退。Silero 最短静音 350 ms、最长检测段 30 秒。 | FSMN；随包配置为结束静音 800 ms、单段最长 20 秒，运行时可能覆盖。 |
+| 处理时机 | 文件或停止录音后批处理；麦克风约 30 秒保存检查点，停止后拼接解析，检查点不是发言边界。 | 存在实时会话、按段处理、预览与结束收尾机制，支持增量处理。 |
+| 说话人分配 | 3 秒声纹窗口、约 1.5 秒步长；稳定窗口建立 KMeans 中心，短片段后分配，再做简单标签平滑。 | 存在在线说话人跟踪、全局重新聚类、短句确认、进一步细化与文字/说话人时间段对齐机制。 |
+| 识别切块 | 先按候选说话人合并和拆条；超过 18 秒时在第 8–16 秒寻找低能量位置切开，再逐条识别。 | 存在 VAD 片段合并、ASR 音频块构建、前后补边参数和展示时间恢复机制；完整执行顺序未确认。 |
+| 已有人物 | 人工关联人物资料；不自动跨任务匹配已保存声纹，新任务使用独立候选标签。 | 存在声纹注册表与已保存声纹匹配机制。 |
+| 文字后处理 | 保存机器识别原文，支持人工修订；这条解析流水线未接入 LLM 自动纠错。 | 存在可选 HTTP 语言模型转写纠错路径与摘要任务队列，不能据此认定每次转写都会联网。 |
+
+即使使用相同 SenseVoice 权重，切块边界、上下文长度、VAD 和后处理不同，也可能产生不同的文字与说话人归属。四来源模型已用统一代码完成公开中、英、粤样例及 ITN 开关的 24 次推理；其中官方通用版与 Freenote 输出 token 完全一致。这是模型层对照，尚未进行两款应用完整处理流程的同音频对照，不据此判断应用整体识别质量。
+
+证据范围：SayAgain 依据当前 [桌面任务入口](desktop/speaker-pipeline.cjs)、[Python 流水线](workers/speaker_pipeline.py) 和 [策略说明](docs/speaker-pipeline.md)；PatchxNote 依据此前对本机 1.0.2（21）安装包的检查，包括 `patchnote-standard-0.2.0/vad/fsmn/config.yaml`、C++ SDK 符号（如 `MergeVadIslands`、`BuildAsrChunks`、`RestoreDisplayTimes`、`OnlineSpeakerTracker`）和 Dart 残留信息。未取得其完整源码；机制存在不等于每次任务都启用，不能把推测写成已确认的默认调用顺序。
 
 ### 语音合成与外部接入（与识别分开）
 

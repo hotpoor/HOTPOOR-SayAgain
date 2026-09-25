@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('sayagain', {
   addExpression: invoke('addExpression'), editExpression: invoke('editExpression'),
   saveVoice: invoke('saveVoice'), archiveVoice: invoke('archiveVoice'),
   defaultVoice: invoke('defaultVoice'), defaultSample: invoke('defaultSample'), addSample: invoke('addSample'),
+  modelEvidenceSource: invoke('modelEvidenceSource'),
+  modelEvidenceCopy: invoke('modelEvidenceCopy'),
   fullscreen: invoke('fullscreen'), backup: invoke('backup'),
   onFullscreen: callback => { const handler = (_event, value) => callback(value); ipcRenderer.on('sayagain:fullscreen-state', handler); return () => ipcRenderer.removeListener('sayagain:fullscreen-state', handler); },
 });

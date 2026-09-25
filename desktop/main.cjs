@@ -57,6 +57,18 @@ else {
       const progress=stage=>p=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,stage,...p});};
       return models.transcribeAll(service,app.getPath('userData'),input,progress('transcribing'));
     });
+    ipcMain.handle('sayagain:modelEvidenceCopy',(event,id)=>{
+      if(!trusted(event))throw Error('无效来源');
+      const record=require('../shared/model-evidence.js').records.find(record=>record.id===id);
+      if(!record)throw Error('未知模型记录');
+      clipboard.writeText(record.sha256);return true;
+    });
+    ipcMain.handle('sayagain:modelEvidenceSource',async(event,id)=>{
+      if(!trusted(event))throw Error('无效来源');
+      const sources=require('../shared/model-evidence.js').sources;
+      if(typeof id!=='string'||!Object.hasOwn(sources,id))throw Error('未知模型来源');
+      await shell.openExternal(sources[id].url);return true;
+    });
     ipcMain.handle('sayagain:recordingModels',event=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').status(app.getPath('userData'));});
     ipcMain.handle('sayagain:transcribeRecording',async(event,input)=>{if(!trusted(event))throw Error('无效来源');return require('./recording-models.cjs').transcribe(service,app.getPath('userData'),input);});
     ipcMain.handle('sayagain:skillPackage',async(event,action)=>{
