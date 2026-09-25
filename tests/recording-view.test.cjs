@@ -33,3 +33,13 @@ test('speaker avatar persists through note updates and can be removed',t=>{
  save({note:'note'});assert.equal(s.state().recordings.find(r=>r.block_id===session.block_id).body.speaker_profiles[0].avatar,avatar);
  assert.throws(()=>save({avatar:'https://example.com/a.png'}),/头像/);save({avatar:''});assert.equal(session.body.speaker_profiles[0].avatar,undefined);
 });
+
+test('presentation groups explicit same-person links only when both use the default avatar',()=>{
+ const session={body:{speaker_profiles:[{key:'D',person_id:'one',name:'同名'},{key:'E',person_id:'one',name:'同名'},{key:'F',person_id:'two',name:'同名'},{key:'G',name:'同名'}]}},speakers=session.body.speaker_profiles;
+ assert.equal(view.displayKey(session,'D'),view.displayKey(session,'E'));
+ assert.deepEqual(view.displayRoster(session,speakers).map(p=>p.key),['D','F','G']);
+ speakers[1].avatar_override='avatar:local';assert.notEqual(view.displayKey(session,'D'),view.displayKey(session,'E'));assert.equal(view.displayRoster(session,speakers).length,4);
+ speakers[0].avatar_override='avatar:local';assert.notEqual(view.displayKey(session,'D'),view.displayKey(session,'E'));
+ speakers[0].avatar_override=null;speakers[1].avatar_override='';assert.equal(view.displayRoster(session,speakers).length,3);
+ delete speakers[1].person_id;assert.equal(view.displayRoster(session,speakers).length,4);
+});

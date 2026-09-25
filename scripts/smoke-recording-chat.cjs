@@ -73,11 +73,18 @@ function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.len
  await cardB.locator('[data-person-search]').fill('主持人');await cardB.locator('[data-person-link-form] select').selectOption('speaker:A');await cardB.locator('[data-person-link]').click();
  await page.waitForFunction(async()=>{const s=await window.sayagain.state();return s.recording_people?.length===1;});
  let peopleState=await page.evaluate(()=>window.sayagain.state());const linkedSession=peopleState.recordings.find(s=>s.block_id===peopleState.recording_clips[0].body.recording_id);const savedAvatar=linkedSession.body.speaker_profiles.find(p=>p.key==='A').avatar;
+ // Restore both linked speakers to the person's default; all adjacent A/B clips share one rail.
+ for(const key of ['A','B']){
+  await page.locator('.reader-people-button').click();const card=page.locator('.speaker-card').filter({has:page.locator('[data-person-link-form="'+key+'"]')});await card.locator('summary').click();await card.locator('[data-avatar-clear]').click();await card.locator('[type=submit]').click();
+  await page.waitForFunction(async key=>{const s=await window.sayagain.state();return !s.recordings.find(r=>r.body.speaker_profiles?.some(p=>p.key===key&&p.person_id))?.body.speaker_profiles.find(p=>p.key===key).avatar_override;},key);
+ }
+ assert.equal(await page.locator('.source-people .speaker-avatar').count(),2);assert.equal(await page.locator('.reader-avatar-stack .speaker-avatar').count(),2);assert.equal(await page.locator('.speaker-run').count(),2);assert.equal(await page.locator('.chat-message').count(),43);assert.equal(await page.locator('.speaker-card').count(),3);
  await page.locator('.reader-people-button').click();await cardB.locator('summary').click();
  await cardB.locator('[data-avatar-file]').setInputFiles({name:'local-avatar.png',mimeType:'image/png',buffer:Buffer.from(await page.evaluate(()=>{const c=document.createElement('canvas');c.width=c.height=16;c.getContext('2d').fillRect(0,0,16,16);return c.toDataURL('image/png').split(',')[1];}),'base64')});
  await page.locator('[data-crop-confirm]').click();
  await cardB.locator('[data-avatar-status]').filter({hasText:'预览已更新'}).waitFor();await cardB.locator('[type=submit]').click();
  await page.waitForFunction(async()=>{const s=await window.sayagain.state();return s.recording_people[0]?.body.avatars?.length===2;});
+ assert.equal(await page.locator('.source-people .speaker-avatar').count(),3);assert(await page.locator('.speaker-run').count()>2);
  peopleState=await page.evaluate(()=>window.sayagain.state());const linked=peopleState.recordings.find(s=>s.block_id===linkedSession.block_id);assert.equal(linked.body.speaker_profiles.find(p=>p.key==='A').avatar,savedAvatar);assert.notEqual(linked.body.speaker_profiles.find(p=>p.key==='B').avatar,savedAvatar);
  await page.reload();await page.locator('[data-page="recordings"]').click();await page.locator('[data-recording-open]').click();await page.locator('.reader-people-button').click();await cardB.locator('summary').click();assert.equal(await cardB.locator('[data-person-avatar]').count(),2);
  // A short filtered list has no scroll overflow: the red line aligns to the row even after resizing.
