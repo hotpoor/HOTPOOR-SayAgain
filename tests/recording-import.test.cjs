@@ -1,5 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {Service}=require('../desktop/service.cjs'),importer=require('../desktop/recording-import.cjs');
+test('bundled FFmpeg decodes without PATH and supports paths with spaces and Chinese text',t=>{
+ const {root,file}=fixture(t),old=process.env.SAYAGAIN_FFMPEG;delete process.env.SAYAGAIN_FFMPEG;t.after(()=>{if(old===undefined)delete process.env.SAYAGAIN_FFMPEG;else process.env.SAYAGAIN_FFMPEG=old;});
+ const executable=importer.ffmpegPath();assert(path.isAbsolute(executable));
+ const output=path.join(root,'解码 输出.wav');
+ const result=require('node:child_process').spawnSync(executable,['-nostdin','-v','error','-y','-i',file,'-t','1','-vn','-ar','16000','-ac','1','-c:a','pcm_s16le',output],{env:{...process.env,PATH:''},windowsHide:true,timeout:15000});
+ assert.equal(result.status,0,result.stderr?.toString());assert.equal(require('../desktop/audio.cjs').parseWav(fs.readFileSync(output)).duration_ms,1000);
+ assert.throws(()=>importer.ffmpegPath(path.join(root,'missing-ffmpeg.exe')),/找不到 FFmpeg/);
+ assert.throws(()=>importer.ffmpegPath(root),/找不到 FFmpeg/);
+});
 function fixture(t){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-import-')),service=new Service(path.join(root,'data')),session=service.createRecording({title:'导入测试'});
  t.after(()=>{service.close();fs.rmSync(root,{recursive:true,force:true});});

@@ -1,9 +1,9 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process'),{createHash}=require('node:crypto');
 const active=new Map();
-function ffmpegPath(){
- const configured=process.env.SAYAGAIN_FFMPEG||require('ffmpeg-static');
+function ffmpegPath(preferred){
+ const configured=process.env.SAYAGAIN_FFMPEG||preferred||require('ffmpeg-static');
  const executable=configured?.replace(/app\.asar([\\/])/,'app.asar.unpacked$1');
- if(!executable||!fs.existsSync(executable))throw Error('音频组件缺失，请运行 npm install 安装配套 FFmpeg');
+ if(!executable||!fs.existsSync(executable)||!fs.statSync(executable).isFile())throw Error(`找不到 FFmpeg 音频解码程序：${executable||'未配置'}。请检查配置路径，或运行 npm install 恢复应用自带的音频组件。`);
  return executable;
 }
 function cancel(id){const job=active.get(id);if(job){job.cancelled=true;job.child?.kill();}return !!job;}
@@ -63,4 +63,4 @@ async function resegment(service,input,onProgress=()=>{}){
   return {saved:results.reduce((n,r)=>n+r.staged.length,0)};
  }finally{discardUncommitted(service,job);active.delete(input.id);}
 }
-module.exports={importFiles,resegment,cancel,close,isBusy:id=>active.has(id),migrateLegacy};
+module.exports={importFiles,resegment,cancel,close,isBusy:id=>active.has(id),migrateLegacy,ffmpegPath};

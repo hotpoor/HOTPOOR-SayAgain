@@ -36,6 +36,14 @@ test('pipeline requires explicit model registration without downloading or creat
  assert.throws(()=>pipeline.start({filename:path.join(root,'00001.wav')}),/登记/);assert.equal(pipeline.status().state,'idle');assert.equal(s.store.list('recording').length,0);
 });
 
+test('invalid registered FFmpeg fails before starting a worker or changing data',t=>{
+ const {root,s}=fixture(t),pipeline=new SpeakerPipeline(s,root),old=process.env.SAYAGAIN_FFMPEG;delete process.env.SAYAGAIN_FFMPEG;t.after(()=>{if(old===undefined)delete process.env.SAYAGAIN_FFMPEG;else process.env.SAYAGAIN_FFMPEG=old;});
+ fs.mkdirSync(path.join(root,'recording-models'));
+ fs.writeFileSync(path.join(root,'recording-models/runtime.json'),JSON.stringify({python:process.execPath,ffmpeg:path.join(root,'missing-ffmpeg.exe'),models:{sensevoice:{path:root},campplus:{path:root},fsmn:{path:root}}}));
+ assert.throws(()=>pipeline.start({filename:path.join(root,'00001.wav')}),/找不到 FFmpeg/);
+ assert.equal(pipeline.status().state,'idle');assert.equal(pipeline.child,null);assert.equal(s.store.list('recording').length,0);
+});
+
 test('candidate import preserves original and permits transcription without confirming identity',t=>{
  const {root,s,manifest,sources}=fixture(t);manifest.clips[0].text='';sources[0].audio=path.join(root,'00001.wav');
  const result=persist(s,root,manifest,sources,'Candidate');

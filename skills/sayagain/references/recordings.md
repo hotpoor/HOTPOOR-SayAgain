@@ -16,12 +16,37 @@ CAMPPlus supports experimental session-scoped speaker candidate grouping using V
 
 Re-running setup resets verification; repeat the actual inference checks. Do not use this workflow to install global hooks or start recording automatically.
 
+## Import preflight and WinError 2
+
+Run these checks after setup/migration, before claiming the recording environment is ready, and when an import fails. Reuse successful checks while the relevant configuration and files remain unchanged. Check the user's existing environment before proposing downloads or installations.
+
+1. Resolve the **running client's actual user-data directory**, including a `SAYAGAIN_DATA_DIR` override. Read `recording-models/runtime.json` there. Do not assume a development directory matches a packaged/custom installation, and do not inspect or print unrelated secret files.
+2. Verify `runtime.python` exists and runs. Execute dependency checks with **that interpreter**, not a different Python on PATH: `import numpy, soundfile, sherpa_onnx, sklearn`; include `funasr_onnx` when using FSMN. Verify SenseVoice has its `tokens.txt` and INT8 ONNX model, CAMPPlus points to its ONNX file, and the selected Silero file or FSMN directory/config/model exists. A historical `verified` flag does not validate moved paths.
+3. Resolve FFmpeg as the current speaker pipeline does: nonempty `SAYAGAIN_FFMPEG`, then `runtime.ffmpeg`, then the application's bundled `ffmpeg-static` executable. An explicit invalid path is an error, not permission to silently choose another. Verify it is a runnable file. Source installations can resolve the bundled path from their actual project directory with `node -p "require('ffmpeg-static')"`; on Windows it normally ends in `node_modules/ffmpeg-static/ffmpeg.exe`. Packaged apps need the unpacked executable path. The portable Skill does **not** bundle FFmpeg or depend on the source checkout: locate the user's installed application or existing FFmpeg and use its verified absolute path. A missing PATH command alone is not evidence that FFmpeg is uninstalled.
+4. Run an actual decode from the registered Python with an isolated short audio fixture or an authorized sample. For example, substitute verified paths in the following argument-based command; use a **new temporary output path**, keep the source untouched, and do not interpolate user text into executable code:
+
+```text
+<registered-python> -c "import subprocess,sys; subprocess.run([sys.argv[1],'-nostdin','-v','error','-n','-i',sys.argv[2],'-t','1','-vn','-ar','16000','-ac','1','-c:a','pcm_s16le',sys.argv[3]],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=30)" <absolute-ffmpeg> <sample-audio> <new-temporary.wav>
+```
+
+Quote path arguments appropriately for the current shell, including Chinese names and spaces. Check the resulting WAV has frames, one channel, 16 kHz and 16-bit PCM, for example with Python's `wave` module. `-version`, successful model loading or the presence of a file is not a decode test. If decoding fails, inspect the subprocess exit/error and relevant stderr; report the failing stage.
+
+5. With an authorized short speech sample, test the actual worker/app import, segmentation, nonempty transcript and saved results after reopening. Keep this in an isolated test session where possible. A synthetic decode fixture proves decoding only, not speech recognition quality. Do not mark models verified from a decode-only test.
+
+### Repairing a missing executable
+
+`[WinError 2]` at Python `subprocess` startup can mean the requested **program** is missing. Identify whether the failed launch is the registered Python, FFmpeg, or another tool; separately check the selected source file. A missing input file normally produces FFmpeg's own error after the program starts. In the known legacy case, runtime omitted `ffmpeg` and the old worker tried the bare command `ffmpeg`, which was absent from Windows PATH even though the app bundled it.
+
+After verifying the available executable, back up `runtime.json` and update only its `ffmpeg` field to the absolute path if that is the missing configuration. Preserve all model descriptors, other settings and verification records; use structured JSON writing and read back the result. Repair a conflicting `SAYAGAIN_FFMPEG` override at its actual source instead of writing a lower-priority field that cannot take effect. Do not rerun `setup-recording-models.py` or `register-recording-models.py` solely to repair this field: those workflows can reset model verification. Do not automatically download models, change global PATH or switch to cloud.
+
+The app reads runtime when each import starts, so a runtime-only correction can be retried directly; changed process environment or main-process code requires a restart. Confirm no relevant task is active before restarting. Report separately: paths checked, real decoding passed/failed, model inference passed/failed/not tested, and app import passed/failed/not tested. Preserve the original recording and existing notes on failure.
+
 
 ## Speaker clips pipeline
 
 The “分人语音条” section creates a separate result session with per-clip audio, original-source timestamps, candidate speaker labels; transcription is available only after user confirmation. Long-file import uses native FFmpeg decoding (2 GiB / 4 hours maximum); processing an existing session preserves original clips and user-edited transcripts. The UI provides language, optional speaker count, progress and cancellation. Never silently upload audio or install dependencies from opening settings.
 
-For the minimal Silero pipeline, use an isolated Python 3.10–3.12 environment and `scripts/speaker-pipeline-requirements.txt`, plus an installed FFmpeg executable. Reuse valid existing models with `scripts/register-recording-models.py --user-dir <actual-user-data-dir> --sensevoice <model-directory> --campplus <onnx-file> --silero <onnx-file> --ffmpeg <executable>`. The helper backs up the existing runtime and records registrations as unverified. The full installer now also downloads Silero; FSMN remains supported as a fallback when Silero is not registered.
+For the minimal Silero pipeline, use an isolated Python 3.10–3.12 environment and `scripts/speaker-pipeline-requirements.txt`, plus a verified existing or app-bundled FFmpeg executable. Reuse valid existing models with `scripts/register-recording-models.py --user-dir <actual-user-data-dir> --sensevoice <model-directory> --campplus <onnx-file> --silero <onnx-file> --ffmpeg <absolute-executable>`. Pass the resolved absolute path rather than relying on the helper's bare `ffmpeg` default. The helper backs up the existing runtime and records registrations as unverified. The full installer now also downloads Silero; FSMN remains supported as a fallback when Silero is not registered. Complete the preflight above after installation; the full model installer does not itself register an FFmpeg path.
 
 Inspect disk space first. Test an authorized recording via the actual worker/app before marking a model verified. A/B labels are session-local candidate groups, never confirmed identities. Sub-second speech may remain unknown; low cosine similarity flags review, not calibrated correctness. Do not automatically submit machine text for expression review or repurpose voiceprints for voice cloning.
 

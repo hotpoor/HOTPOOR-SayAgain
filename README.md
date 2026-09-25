@@ -84,6 +84,20 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 4. **转写与校对**：SenseVoice INT8 在分人拆条后自动生成原语言文字，保留说话人归属。人工修订优先显示；修改分段后，旧转写标记待更新。自动文字仍需校对。
 5. **阅读与整理**：按文件折叠、按说话人筛选、按时间正序 / 倒序、内联滚动浏览（高度可调、侧边位置滑块与一键回顶），并导出带来源、起止时间和备注名的 `transcript.txt`。
 
+### 导入前检查与 Windows 文件找不到排查
+
+配置录音环境、迁移电脑或导入失败时，依次检查：
+
+1. **实际数据目录**：确认当前客户端使用的目录（包括 `SAYAGAIN_DATA_DIR` 覆盖），读取其中的 `recording-models/runtime.json`；不要检查另一个安装实例的配置。
+2. **Python 和模型**：确认 `runtime.python` 是存在且可运行的解释器，用它检查依赖；核对 SenseVoice 的模型与词表、CAMPPlus，以及 Silero 或 FSMN 的实际文件。环境存在或 `verified: true` 的历史记录不代表迁移后的路径仍有效。
+3. **FFmpeg**：分人导入按 `SAYAGAIN_FFMPEG` → `runtime.ffmpeg` → 应用自带 `ffmpeg-static` 选择程序。显式配置无效会报错，不会跳过它。Windows 源码版通常为项目下 `node_modules/ffmpeg-static/ffmpeg.exe`；不要假定系统 PATH 已配置。独立导出的 Skill 不附带该二进制，应定位实际客户端安装中的程序或用户已有安装。
+4. **实际解码**：用录音环境的 Python 通过参数数组调用 FFmpeg 的绝对路径，将隔离短样例解码到新的临时 WAV，确认输出非空、16 kHz、单声道。检查中文和空格路径；仅执行 `-version` 不算解码验证。
+5. **导入验证**：再用获准的短语音样例检查客户端分段、转写、原文件保留与重开后的结果。程序存在、解码成功、模型推理成功和完整导入成功分别记录，不能互相代替。
+
+`[WinError 2]` 要先定位哪个子进程启动失败，不要直接判断为所选音频丢失。已知情形是旧配置没有 `ffmpeg` 字段，而旧导入流程尝试运行 PATH 中不存在的 `ffmpeg`。核对 Python、FFmpeg 和源文件后，备份配置，只修正失效字段，保留模型路径及验证记录；若只有 FFmpeg 路径缺失，不重跑模型安装或注册脚本。当前流程每次开始导入会重新读取 runtime，修正它可直接重试；修改进程环境变量或主进程代码则需重启客户端。
+
+详细命令与检查边界见 [Skill 导入前检查](skills/sayagain/references/recordings.md#import-preflight-and-winerror-2)。
+
 ### 阅读与播放
 
 | 功能 | 当前行为 |

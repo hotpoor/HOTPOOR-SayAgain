@@ -1300,3 +1300,13 @@ dialog { overflow:hidden; }
 .queue-item .button{margin-left:10px;padding:3px 7px;font-size:10px}
 .queue-item .queue-error{color:#a63832;font-size:11px}
 @media(max-width:700px){.queue-panel{position:fixed;right:16px;top:62px}}
+
+/* Bound source-header content independently of speaker count and viewport breakpoints. */
+.conversation-source>summary>.source-heading{flex:1 1 0;min-width:0}
+.conversation-source>summary .source-heading strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conversation-source>summary>.source-people{flex:0 0 auto;max-width:none;overflow:visible}
+.source-people .speaker-avatar{flex:0 0 27px}
+.source-people>button:last-child{flex:0 0 auto;min-width:27px;width:auto;padding:0 5px;font-size:10px;white-space:nowrap}
+.conversation-source>summary>.source-grip,.conversation-source>summary>.source-chevron,
+.conversation-source>summary>.source-play,.conversation-source>summary>.source-follow,
+.conversation-source>summary>.source-more{flex-shrink:0}

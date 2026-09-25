@@ -108,7 +108,7 @@ class SpeakerPipeline{
  status(){return this.job?{...this.job}:{state:'idle'};}
  start(input){
   if(this.job?.state==='running')throw Error('已有分人转写任务正在运行');
-  const settings=validateOptions(input.options),runtime=readRuntime(this.directory);let sources,parent,title;
+  const settings=validateOptions(input.options),runtime=readRuntime(this.directory),ffmpeg=require('./recording-import.cjs').ffmpegPath(runtime.ffmpeg);let sources,parent,title;
   if(input.filename){
    const filename=path.resolve(input.filename),stat=fs.statSync(filename);
    if(!stat.isFile()||stat.size>2*1024**3)throw Error('请选择不超过2GB的音频文件');
@@ -152,7 +152,7 @@ class SpeakerPipeline{
   });
   child.stdin.on('error',()=>{});child.on('error',finish);
   child.on('close',code=>{let message=lastError;try{message=JSON.parse(output).error||message;}catch{}finish(code!==0?Error(message||(timedOut?'处理超时':'本地模型处理失败，请检查依赖和 FFmpeg')):null);});
-  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg:runtime.ffmpeg||'ffmpeg',sources,options:settings,transcribe:true,output_dir:folder}));
+  child.stdin.end(JSON.stringify({models:runtime.models,ffmpeg,sources,options:settings,transcribe:true,output_dir:folder}));
   return this.status();
  }
  kill(){if(!this.child)return;try{if(process.platform==='win32')spawn('taskkill',['/pid',String(this.child.pid),'/T','/F'],{windowsHide:true});else process.kill(-this.child.pid,'SIGKILL');}catch{this.child.kill();}}
