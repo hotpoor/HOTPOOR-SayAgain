@@ -51,13 +51,17 @@ SayAgain 的语音处理流程先检测语音区间，再结合说话人信息�
 
 语音识别的来源模型是 [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，通过 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 运行相应的 ONNX 制品。SenseVoice 提供逆文本规范化（ITN）选项，将部分口语表达转换为更适合阅读的书面形式；具体权重、转换版本和运行设置会影响实际输出。现阶段暂缓模型版本选型与效果优劣的结论，标点、大小写和数字拼接作为后续验证目标，不在此承诺已全面实现。
 
-### 上游模型与第三方样本核验
+### 上游模型能力与 PatchX FreeNote 商业化产品
 
-感谢 SenseVoiceSmall、sherpa-onnx 等上游项目提供模型与推理工具。模型来源、应用集成与产品体验应分别说明；应用内的模型包名称不能作为自研或微调的证据。
+SenseVoiceSmall 是上游语音识别模型，sherpa-onnx 提供相应导出文件与推理工具。本次官方通用 INT8 模型的直接推理已呈现标点、英文大小写和部分数字规范化；这些已验证能力来自上游模型及其 ITN 设置，不能归功于 FreeNote 的独立微调。FreeNote 也将这套模型用在了自己的商业化录音产品中。
 
-本次核验的 PatchxNote 1.0.2（21）内置包名为 `patchnote-standard-0.2.0`，其中 `model.int8.onnx` 与 sherpa-onnx 官方 `2024-07-17` 通用 INT8 文件大小及完整 SHA-256 一致。因此，这份样本应标注为选用了相同的官方通用模型；当前文件证据不支持将它描述为另行微调的权重。文件指纹、来源和核验范围见 [模型来源证据](docs/model-provenance.md)。
+本次核验的 PatchxNote 1.0.2（21）内置包名为 `patchnote-standard-0.2.0`，其中 `model.int8.onnx` 与 sherpa-onnx 官方 `2024-07-17` 通用 INT8 文件大小及完整 SHA-256 一致。也就是说，**这份内置样本用的就是相同的官方通用模型文件**；应用包名不同，不代表模型经过另行训练或微调。文件指纹、来源和核验范围见 [模型来源证据](docs/model-provenance.md)。结论限于已核验文件，其他版本、云端模型和应用前后处理分别核对。
 
-这一结论仅针对已核验文件，不覆盖其他版本、云端模型或应用前后处理。曾经观察到的标点、大小写和数字呈现效果，也不能直接归因于厂商微调。SayAgain 撤下此前的产品推荐、购买引导与宣传图展示，保留可核对的技术事实。
+**产品推荐 · PatchX FreeNote**：需要随身录音设备的用户，可以[前往官方页面了解产品与购买方式](https://freenote.patch-x.cn/download/)，通过页面内「购买录音卡」查看。推荐的是基于上游模型集成的商业化录音产品；上述样本的标点等模型能力来自官方通用模型，不应将产品包名或展示效果理解为独立微调的证明。
+
+<a href="https://freenote.patch-x.cn/download/"><img src="docs/images/patchx-freenote-promo.png" width="720" alt="PatchX FreeNote 录音卡产品展示；已核验的内置识别模型与官方通用版一致"></a>
+
+图片为产品宣传素材；模型来源以本项目的文件核验证据为准。应用集成、硬件体验与上游模型能力分开评价，不据此承诺整体识别质量。
 
 ## 本地优先
 
