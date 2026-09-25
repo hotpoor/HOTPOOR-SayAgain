@@ -434,10 +434,20 @@ PatchX FreeNote 也使用了这套上游模型，并在此基础上集成录音�
 
 欢迎通过 [Issues](https://github.com/hotpoor/HOTPOOR-SayAgain/issues) 分享希望支持的语言对、客户端接入需求、本地硬件体验，以及表达回顾和跟读方面的建议。反馈时请使用虚构或脱敏的示例。
 
-### 截图与共享快捷键
+<br>
+
+---
+
+<br>
+
+## P.S. 补充说明：截图与共享快捷键
 
 整屏截图写入本机剪贴板，可设置快捷键；HOTPOOR 产品共用快捷键，按优先级交接监听。此辅助能力不改变上方四项核心功能的优先级。
 
 2026-09-25 排查 Mac 微信窗口遗漏时，用户提供向日葵可用的对照线索，我们通过接口、日志与独立原型验证找到本机可行路径，再接入产品。公开记录解决问题的过程：首次报告至原型核验完成 18 分 25 秒，产品集成验证阶段 22 分 1 秒，总经过时间 45 分钟，均为会话时间而非纯编码工时。
 
-[发现与解决过程](docs/screen-capture-case-study.md) · [截图设置与构建说明](docs/screen-capture.md) · [可复用排查 Skill](skills/screen-capture-troubleshooting/SKILL.md)。文档注明参考来源、未奏效的尝试、修正与版本边界；当前成功结果限于记录中的环境，系统更新后需要复验。
+<br>
+
+[发现与解决过程](docs/screen-capture-case-study.md) · [截图设置与构建说明](docs/screen-capture.md) · [可复用排查 Skill](skills/screen-capture-troubleshooting/SKILL.md)
+
+文档注明参考来源、未奏效的尝试、修正与版本边界；当前成功结果限于记录中的环境，系统更新后需要复验。
