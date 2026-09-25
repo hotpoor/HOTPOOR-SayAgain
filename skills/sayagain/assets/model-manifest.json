@@ -1,0 +1,541 @@
+{
+  "schema_version": 1,
+  "release": "v0.2.1",
+  "base_url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/",
+  "models": {
+    "sensevoice-2025": {
+      "source": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models",
+      "notes": "Current Windows registration; original upstream-named export; English uppercase in comparison.",
+      "archive_size": 237449098,
+      "archive_sha256": "7860bb87bd87d31eae8aef86d5dead3547f578a5308fb4245e2ae7ed583df825",
+      "files": [
+        {
+          "path": "model.int8.onnx",
+          "size": 237115547,
+          "sha256": "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d"
+        },
+        {
+          "path": "README.md",
+          "size": 131,
+          "sha256": "721841358d4faa38b0a674bdfc7d5d3cfdf0fafd314aea5dd3280eb09d1af828"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 315894,
+          "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+        },
+        {
+          "path": "LICENSES/FunASR-MODEL-LICENSE.txt",
+          "size": 5306,
+          "sha256": "7dba975a2069691db4992b0592d70828b330d2f8a30a71450f4e152a554e84f8"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 158,
+          "sha256": "56641b647e869c8f792e57f605846ba69b3911ee8e754ef1b663abe67111bc6b"
+        }
+      ],
+      "assets": [
+        {
+          "name": "sensevoice-2025.zip",
+          "size": 237449098,
+          "sha256": "7860bb87bd87d31eae8aef86d5dead3547f578a5308fb4245e2ae7ed583df825",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/sensevoice-2025.zip"
+        }
+      ]
+    },
+    "sensevoice-patchnote": {
+      "source": "User-provided PatchxNote patchnote-standard 0.2.0 copy; archive SHA256 26e5481c800aae02208e5f8e3cff169db9f693c3ccc3b48031137d356291ff8e",
+      "notes": "SenseVoice by Alibaba/FunAudioLLM. Exact upstream revision unknown; normal casing/punctuation in tested English sample. Not automatically selected.",
+      "archive_size": 239567294,
+      "archive_sha256": "398a59f667ae70b080493d4ebc55fa0cdf07a3f68b1516cee69cc25a196243ac",
+      "files": [
+        {
+          "path": "model.int8.onnx",
+          "size": 239233841,
+          "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 315894,
+          "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+        },
+        {
+          "path": "LICENSES/FunASR-MODEL-LICENSE.txt",
+          "size": 5306,
+          "sha256": "7dba975a2069691db4992b0592d70828b330d2f8a30a71450f4e152a554e84f8"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 285,
+          "sha256": "0fab4ee8db61f60d0fedeb7c7459e7cb56b995ce5522152b7a8a96f2163b36f2"
+        }
+      ],
+      "assets": [
+        {
+          "name": "sensevoice-patchnote.zip",
+          "size": 239567294,
+          "sha256": "398a59f667ae70b080493d4ebc55fa0cdf07a3f68b1516cee69cc25a196243ac",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/sensevoice-patchnote.zip"
+        }
+      ]
+    },
+    "campplus": {
+      "source": "https://github.com/modelscope/3D-Speaker",
+      "notes": "CAMPPlus by 3D-Speaker/ModelScope; sherpa-onnx export.",
+      "archive_size": 28304558,
+      "archive_sha256": "6080ee001d80191245c1cbbc90cf61da716dc7531a08714e6770871c08bbcdcb",
+      "files": [
+        {
+          "path": "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+          "size": 28281164,
+          "sha256": "aa3cfc16963a10586a9393f5035d6d6b57e98d358b347f80c2a30bf4f00ceba2"
+        },
+        {
+          "path": "LICENSES/Apache-2.0.txt",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 97,
+          "sha256": "eb49d4c4550334163bb5d222e285038312c6ff39659dbbd7cb070e1ba52d12e9"
+        }
+      ],
+      "assets": [
+        {
+          "name": "campplus.zip",
+          "size": 28304558,
+          "sha256": "6080ee001d80191245c1cbbc90cf61da716dc7531a08714e6770871c08bbcdcb",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/campplus.zip"
+        }
+      ]
+    },
+    "fsmn-vad": {
+      "source": "https://huggingface.co/funasr/fsmn-vad-onnx/tree/f6e9fbb4cefa7397216c763f21307993f147f585",
+      "notes": "FSMN-VAD by FunASR. config.yaml and am.mvn adapted from vad.yaml/vad.mvn for funasr-onnx 0.4.3; weights unchanged.",
+      "archive_size": 2281651,
+      "archive_sha256": "bba6f1bffb5d247b26ed69b21dd329963c1312c693d2b27cbb99b47708fd3d98",
+      "files": [
+        {
+          "path": "am.mvn",
+          "size": 8040,
+          "sha256": "6820fef9687708c4fc3fab2530179c8fcea6262daa25514380056cd8f6eb1754"
+        },
+        {
+          "path": "config.yaml",
+          "size": 1172,
+          "sha256": "393c3193d38b4fe8aad2bfb15fdeb9db7a2b7122927bdffc4222a251d191ee0b"
+        },
+        {
+          "path": "model.onnx",
+          "size": 1730426,
+          "sha256": "756887ce01695a9bb00dd85ca0f743653de03b18ba54d2e9ef4f4bb9b3edbf9f"
+        },
+        {
+          "path": "model_quant.onnx",
+          "size": 508876,
+          "sha256": "9b28837838fce9685503c63139fadbad35d6c8ed485485dafdbb32e725969660"
+        },
+        {
+          "path": "vad.mvn",
+          "size": 8040,
+          "sha256": "6820fef9687708c4fc3fab2530179c8fcea6262daa25514380056cd8f6eb1754"
+        },
+        {
+          "path": "vad.yaml",
+          "size": 1216,
+          "sha256": "db524c680b80b0ea0a617110f6a269019da9fe4db1c38500f7552aeb6fad08b4"
+        },
+        {
+          "path": "LICENSES/Apache-2.0.txt",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 206,
+          "sha256": "f1e6131ed39410e79135704907f8bc64bd547f366da7194174bf1b708be0d233"
+        }
+      ],
+      "assets": [
+        {
+          "name": "fsmn-vad.zip",
+          "size": 2281651,
+          "sha256": "bba6f1bffb5d247b26ed69b21dd329963c1312c693d2b27cbb99b47708fd3d98",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/fsmn-vad.zip"
+        }
+      ]
+    },
+    "silero-vad": {
+      "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+      "notes": "Silero VAD by Silero Team; downloaded and checksum-verified, not newly inference-tested.",
+      "archive_size": 656954,
+      "archive_sha256": "e950d9844816590d6086f735c6bb8b454777349f8b948c2cf73ca99d345abc4c",
+      "files": [
+        {
+          "path": "silero_vad.onnx",
+          "size": 643854,
+          "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
+        },
+        {
+          "path": "LICENSES/Silero-MIT.txt",
+          "size": 1075,
+          "sha256": "2e63e9a38b6e8fc0c7bc37ce174caca1862870856c6daf5697cfb785e925520b"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 173,
+          "sha256": "a925450d05a505d3d63fcc43d5b3a182475865a7dc8f515eaddb6586879af48d"
+        }
+      ],
+      "assets": [
+        {
+          "name": "silero-vad.zip",
+          "size": 656954,
+          "sha256": "e950d9844816590d6086f735c6bb8b454777349f8b948c2cf73ca99d345abc4c",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/silero-vad.zip"
+        }
+      ]
+    },
+    "zipformer-kws": {
+      "source": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/kws-models",
+      "notes": "Zipformer keyword spotting export by k2-fsa/sherpa-onnx.",
+      "archive_size": 38879822,
+      "archive_sha256": "984e8cf2517208d444bde759ad66f0fc7fb3813b713e5f6504a6012154a1ea04",
+      "files": [
+        {
+          "path": "decoder-epoch-13-avg-2-chunk-16-left-64.onnx",
+          "size": 759829,
+          "sha256": "63a22dd60f40fff082ac3e09afa507f6787da36df76ded2fbe145fa233e22c21"
+        },
+        {
+          "path": "decoder-epoch-13-avg-2-chunk-8-left-64.onnx",
+          "size": 759829,
+          "sha256": "63a22dd60f40fff082ac3e09afa507f6787da36df76ded2fbe145fa233e22c21"
+        },
+        {
+          "path": "en.phone",
+          "size": 3330061,
+          "sha256": "f7000ec3a90544c0c7c16090d8951779c2b322e14dad5006290f498567d439ea"
+        },
+        {
+          "path": "encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx",
+          "size": 4599656,
+          "sha256": "408bbd740838c42d5bf6d1c5b80b3c88b616c7860b92d980328b5b068c76ae48"
+        },
+        {
+          "path": "encoder-epoch-13-avg-2-chunk-16-left-64.onnx",
+          "size": 11976272,
+          "sha256": "540ff509ed89bd22afe04bf7049a54bb1c95c6d8a18742ea9691910cdb5f859e"
+        },
+        {
+          "path": "encoder-epoch-13-avg-2-chunk-8-left-64.int8.onnx",
+          "size": 4600657,
+          "sha256": "2ca84d6bfe73e1ea3c9c49f600f7cad1c9ddd423c53c906b8bfe802444dd78d5"
+        },
+        {
+          "path": "encoder-epoch-13-avg-2-chunk-8-left-64.onnx",
+          "size": 11976951,
+          "sha256": "307e2f5e87e9d6df4fd058239f4437b6236db7699b9c61decb490f89fb4226d0"
+        },
+        {
+          "path": "joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx",
+          "size": 86629,
+          "sha256": "190d4067b4cc20b72a42a1916e69d92052000fb7051a427ebb1bc72a69207dc1"
+        },
+        {
+          "path": "joiner-epoch-13-avg-2-chunk-16-left-64.onnx",
+          "size": 338154,
+          "sha256": "76f7a24ed0c08633af14b2ee377f747af880d3b65eeba2cd3f31f3380fb73e8d"
+        },
+        {
+          "path": "joiner-epoch-13-avg-2-chunk-8-left-64.int8.onnx",
+          "size": 86629,
+          "sha256": "190d4067b4cc20b72a42a1916e69d92052000fb7051a427ebb1bc72a69207dc1"
+        },
+        {
+          "path": "joiner-epoch-13-avg-2-chunk-8-left-64.onnx",
+          "size": 338154,
+          "sha256": "76f7a24ed0c08633af14b2ee377f747af880d3b65eeba2cd3f31f3380fb73e8d"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 1928,
+          "sha256": "2d3f32311f9b692b964da3c90e830258d3e78e013cb0c992dbfb15cd5a1a71b0"
+        },
+        {
+          "path": "LICENSES/Apache-2.0.txt",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 120,
+          "sha256": "9a835448b2ef8295369f3c8526304d71a0b20dcc4d027a1e30db2df87e769928"
+        }
+      ],
+      "assets": [
+        {
+          "name": "zipformer-kws.zip",
+          "size": 38879822,
+          "sha256": "984e8cf2517208d444bde759ad66f0fc7fb3813b713e5f6504a6012154a1ea04",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/zipformer-kws.zip"
+        }
+      ]
+    },
+    "qwen3-tts-0.6b-base": {
+      "source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base/tree/5d83992436eae1d760afd27aff78a71d676296fc",
+      "notes": "Qwen Team; official weight hashes and small inference files verified against revision 5d83992436eae1d760afd27aff78a71d676296fc. Local configuration.json retained. No reference audio or user voices included.",
+      "archive_size": 2516125951,
+      "archive_sha256": "fca934b371226d242db218048409407fe3c1d2ab1ded884667a38f4ab0c939c2",
+      "files": [
+        {
+          "path": "config.json",
+          "size": 4494,
+          "sha256": "2e714c787c8edb98b05432685cddb634add2de4d4e645f653d68251ef72ba011"
+        },
+        {
+          "path": "configuration.json",
+          "size": 47,
+          "sha256": "c502b6328c67638b401df8dd05de89e9e8d1cff9cd0ada10dfbdbe13556c20de"
+        },
+        {
+          "path": "generation_config.json",
+          "size": 245,
+          "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+        },
+        {
+          "path": "merges.txt",
+          "size": 1671839,
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "path": "model.safetensors",
+          "size": 1829344272,
+          "sha256": "180b3b10eb1c9f1b4db7806d5475bae3071c0243c299d49926bab1da3b6946f6"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size": 127,
+          "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+        },
+        {
+          "path": "speech_tokenizer/config.json",
+          "size": 2336,
+          "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+        },
+        {
+          "path": "speech_tokenizer/configuration.json",
+          "size": 76,
+          "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+        },
+        {
+          "path": "speech_tokenizer/model.safetensors",
+          "size": 682293092,
+          "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+        },
+        {
+          "path": "speech_tokenizer/preprocessor_config.json",
+          "size": 234,
+          "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 7344,
+          "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+        },
+        {
+          "path": "vocab.json",
+          "size": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        },
+        {
+          "path": "LICENSES/Apache-2.0.txt",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 307,
+          "sha256": "3e8cd9be677fb88861dd66d40461344192b36bf139a83bb1a9c0d1d1b2fcd6f5"
+        }
+      ],
+      "assets": [
+        {
+          "name": "qwen3-tts-0.6b-base.zip.part001",
+          "size": 1073741824,
+          "sha256": "161e81fde4677b305839f82082b3b9f7a8aca75445eb21f2fe0cd59308fa19b0",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-0.6b-base.zip.part001"
+        },
+        {
+          "name": "qwen3-tts-0.6b-base.zip.part002",
+          "size": 1073741824,
+          "sha256": "6c67f819138ebc529adb0966003013774c4eec8e74a24ed277b21cec2a901f50",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-0.6b-base.zip.part002"
+        },
+        {
+          "name": "qwen3-tts-0.6b-base.zip.part003",
+          "size": 368642303,
+          "sha256": "582c895c2a0287b5120b605e47c7b253444975bb04abd3fe285fadbd8c05c972",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-0.6b-base.zip.part003"
+        }
+      ]
+    },
+    "qwen3-tts-1.7b-base": {
+      "source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base/tree/fd4b254389122332181a7c3db7f27e918eec64e3",
+      "notes": "Qwen Team; official weight hashes and small inference files verified against revision fd4b254389122332181a7c3db7f27e918eec64e3. Local configuration.json retained. No reference audio or user voices included.",
+      "archive_size": 4544253434,
+      "archive_sha256": "66065df644dd0a0571f4476816c1bd8e61465f6c8288caa0ab4e21eea3ec3b17",
+      "files": [
+        {
+          "path": "config.json",
+          "size": 4494,
+          "sha256": "b4f01752d15a488abde3e1ab44723ae4f4b9e68a4037257b098b3737893cc1f9"
+        },
+        {
+          "path": "configuration.json",
+          "size": 47,
+          "sha256": "c502b6328c67638b401df8dd05de89e9e8d1cff9cd0ada10dfbdbe13556c20de"
+        },
+        {
+          "path": "generation_config.json",
+          "size": 245,
+          "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+        },
+        {
+          "path": "merges.txt",
+          "size": 1671839,
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "path": "model.safetensors",
+          "size": 3857413744,
+          "sha256": "38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size": 127,
+          "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+        },
+        {
+          "path": "README.md",
+          "size": 57817,
+          "sha256": "621b7e88f1867bc03d817176fc1f7f55f4b5a70654b2a07fdcda1e169efb024b"
+        },
+        {
+          "path": "speech_tokenizer/config.json",
+          "size": 2336,
+          "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+        },
+        {
+          "path": "speech_tokenizer/configuration.json",
+          "size": 76,
+          "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+        },
+        {
+          "path": "speech_tokenizer/model.safetensors",
+          "size": 682293092,
+          "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+        },
+        {
+          "path": "speech_tokenizer/preprocessor_config.json",
+          "size": 234,
+          "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 7344,
+          "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+        },
+        {
+          "path": "vocab.json",
+          "size": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        },
+        {
+          "path": "LICENSES/Apache-2.0.txt",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSES/sherpa-onnx-LICENSE.txt",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "PROVENANCE.txt",
+          "size": 307,
+          "sha256": "2d032181aaa4ed05f3eba120343d8bb6a10405aca58898e5e6dc140eab594694"
+        }
+      ],
+      "assets": [
+        {
+          "name": "qwen3-tts-1.7b-base.zip.part001",
+          "size": 1073741824,
+          "sha256": "cccfae84107ffb2c3a8784f42b97632d84eb25b828bb3911839fdbf2cfd903ba",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-1.7b-base.zip.part001"
+        },
+        {
+          "name": "qwen3-tts-1.7b-base.zip.part002",
+          "size": 1073741824,
+          "sha256": "270ce85d68f39dbf9b3bf17b3892002a056e5e2fada198afd7cc3925c4c0431c",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-1.7b-base.zip.part002"
+        },
+        {
+          "name": "qwen3-tts-1.7b-base.zip.part003",
+          "size": 1073741824,
+          "sha256": "dcbe83928dd33eebf541fb3cc86e47fc0ddb5693c5d15393e6d4343a13f401e5",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-1.7b-base.zip.part003"
+        },
+        {
+          "name": "qwen3-tts-1.7b-base.zip.part004",
+          "size": 1073741824,
+          "sha256": "71fbeaed71bca8903fa540725034228c91a0e4ba9c7c409adbaf81fe3dae7cb9",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-1.7b-base.zip.part004"
+        },
+        {
+          "name": "qwen3-tts-1.7b-base.zip.part005",
+          "size": 249286138,
+          "sha256": "327a8d84c8db1b518624b393778ff1c69a7439fea72dc0b52bf55ab263b0a552",
+          "url": "https://github.com/hotpoor/HOTPOOR-SayAgain/releases/download/v0.2.1/qwen3-tts-1.7b-base.zip.part005"
+        }
+      ]
+    }
+  }
+}

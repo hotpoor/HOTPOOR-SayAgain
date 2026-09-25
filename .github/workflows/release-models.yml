@@ -1,0 +1,20 @@
+name: Build pinned Release model assets
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        model: [sensevoice-2025, sensevoice-patchnote, campplus, fsmn-vad, silero-vad, zipformer-kws, qwen3-tts-0.6b-base, qwen3-tts-1.7b-base]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build byte-identical pinned archives and upload into existing draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/build-release-model.py --model '${{ matrix.model }}' --output '${{ runner.temp }}/release-model' --upload

@@ -6,7 +6,13 @@
 
 HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得改进的表达，用母语解释原因，再用自己的音色听一遍、跟读一遍。面向多种母语与目标语言组合，而不局限于英语。
 
-> Electron 源码客户端 v0.2：表达回顾、音色库与语音文件会话已接通。长音频可在本机分人拆条，自动转写后人工校对；紧凑 / 对话双视图支持原时间轴、说话人备注与头像、SVG 波形和连续发言吸附。本地转写已验证；本地 Qwen3-TTS 合成尚未验证。云端 Qwen 合成已接入，尚无安装包。
+> Electron 源码客户端 v0.2.1：表达回顾、音色库与语音文件会话已接通。长音频可在本机分人拆条，自动转写后人工校对；紧凑 / 对话双视图支持原时间轴、说话人备注与头像、SVG 波形和连续发言吸附。本地转写已验证；本地 Qwen3-TTS 合成尚未验证。云端 Qwen 合成已接入，尚无安装包。
+
+## v0.2.1 发布与模型下载
+
+[GitHub Release v0.2.1](https://github.com/hotpoor/HOTPOOR-SayAgain/releases/tag/v0.2.1) 提供完整可移植 Skill 和8组本地模型附件，覆盖两份 SenseVoice、FSMN/Silero VAD、CAMPPlus、Zipformer KWS 与 Qwen3-TTS Base 0.6B/1.7B。大模型按1 GiB分卷，下载脚本自动合并并验证分卷、整包和解压文件 SHA256。只下载所选模型，不自动修改应用 runtime 或切换模型。
+
+这是源码、Skill 与模型资源发布，尚无桌面安装包。使用方式见 [Release 模型下载](skills/sayagain/references/release-models.md)，完整指纹和固定下载地址见 [模型清单](skills/sayagain/assets/model-manifest.json)。模型各自的来源、许可及适配说明随附件保留。
 
 ## 为什么做 SayAgain
 
