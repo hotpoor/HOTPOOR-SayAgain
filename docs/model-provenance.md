@@ -60,6 +60,8 @@ ONNX 是模型导出格式。此样本从官网指向的 iic 官方模型库手�
 
 [闪电说官网量化说明](https://shandianshuo.cn/docs/faq/memory-quantized-model) · [iic 官方 ONNX 模型库](https://modelscope.cn/models/iic/SenseVoiceSmall-onnx/files)
 
+公开中、英、粤样例的 ITN 开关输出见 [四来源实测结果](sensevoice-four-source-results.md)。
+
 ## 核验结论及范围
 
 Freenote / PatchxNote 也选用了相同的官方 SenseVoice 通用模型。本次官方通用与 Freenote 的完整模型文件指纹相同；四个来源实际对应三份不同文件。包名 patchnote-standard 0.2.0 不是模型训练版本号。
