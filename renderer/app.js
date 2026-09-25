@@ -81,9 +81,11 @@ function renderOnboarding() {
   $('#main').innerHTML = `<div class="page"><section class="onboarding"><span class="eyebrow">WELCOME TO SAYAGAIN</span><h1>先从你熟悉的语言开始。</h1><p>选择母语与想练习的语言。把你说过的话留在这里，用自己的节奏，练习更自然的表达。</p><form id="language-form"><div class="fields-row">${languageField('native_language','我的母语',state.config.body.native_language)}${languageField('target_language','我想练习',state.config.body.target_language)}</div>${languageOptions()}<p class="form-error" role="alert"></p><button class="button primary" type="submit">创建本地工作空间 ${icon('arrow')}</button></form><p class="quiet-note">表达和录音保存在这台电脑。支持手动记录、Skill 评估接入与音色合成。空间不足时，可在设置中填写 Qwen AK 使用云端。</p></section></div>`;
 }
 function heading(kicker,title,description,button='') { return `<div class="page-heading"><div><div class="heading-kicker">${kicker}</div><h1>${title}</h1><p>${description}</p></div>${button}</div>`; }
+let reviewTimeline;
 function renderReview() {
-  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选" title="按语言对查看，句数随搜索和记录筛选更新"></select><span class="count-label" id="results-count"></span></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
+  $('#main').innerHTML = `<div class="page">${heading('YOUR WORDS, A LITTLE BETTER','表达回顾','回到说过的话，找到更自然的表达。','<button class="button primary" data-action="add-expression">＋ 记录表达</button>')}<div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" aria-label="搜索表达" placeholder="搜索原句、建议或解释" value="${escapeHtml(search)}"></label><select class="filter" id="review-filter" aria-label="记录筛选"><option value="active">全部表达</option><option value="favorite">已收藏</option><option value="archived">已归档</option></select><select class="filter" id="pair-filter" aria-label="语言筛选" title="按语言对查看，句数随搜索和记录筛选更新"></select><span class="count-label" id="results-count"></span></div><div id="review-timeline"></div><div id="entries"></div><p class="quiet-note">手动记录和 Skill 建议都保存在本地。选择音色，即可按设置使用本地或云端合成。</p></div>`;
   $('#review-filter').value = filter;
+  reviewTimeline=window.libraryTimeline.setup($('#review-timeline'),{unit:'条表达',onChange:renderReviewResults});
   renderEntries();
 }
 function renderEntries() {
@@ -104,8 +106,13 @@ function renderEntries() {
   $('#pair-filter').innerHTML=`<option value="all">所有语言（${matching.length} 句）</option>`+Array.from(pairs).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>`<option value="${escapeHtml(key)}">${escapeHtml(labelLanguage(value.native_language))} → ${escapeHtml(labelLanguage(value.target_language))}（${counts.get(key)||0} 句）${key===currentKey?' · 当前学习':''}</option>`).join('');
   $('#pair-filter').value=pair;
   const entries=matching.filter(({body:b})=>pair==='all'||languageKey(b.language_pair)===pair);
+  reviewTimeline.update(entries);
+}
+function renderReviewResults(entries) {
+  stopPlayer();
+  const config=state.config.body;
   $('#results-count').textContent = `显示 ${entries.length} 句 · 总计 ${state.expressions.length} 句`;
-  $('#results-count').title='显示数量受搜索、收藏、归档和语言筛选影响；总计包含所有语言及已归档表达';
+  $('#results-count').title='显示数量受日期、搜索、收藏、归档和语言筛选影响；总计包含所有语言及已归档表达';
   if (!entries.length) {
     $('#entries').innerHTML = `<section class="empty"><div class="empty-symbol">${icon('messages')}</div><h2>${state.expressions.length ? '这里还没有符合条件的表达' : '让下一次表达，更像你。'}</h2><p>${state.expressions.length ? '换一个关键词或筛选条件，找回想练习的那句话。' : '记下一句想说得更好的话，留下建议和原因。你的个人表达库，从这里开始。'}</p><div class="empty-actions"><button class="button primary" data-action="add-expression">记录第一句</button>${!state.expressions.length && config.native_language.startsWith('zh') && config.target_language.startsWith('en') ? '<button class="button" data-action="example">填入一条示例</button>' : ''}</div></section>`; return;
   }
