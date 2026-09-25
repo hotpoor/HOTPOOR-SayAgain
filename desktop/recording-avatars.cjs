@@ -7,7 +7,7 @@ function save(directory,value){
   return value;
  }
  const match=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
- if(!match||value.length>400000)throw Error('头像需为本地 PNG、JPEG 或 WebP 图片');
+ if(!match||value.length>2*1024*1024)throw Error('头像需为本地 PNG、JPEG 或 WebP 图片');
  const bytes=Buffer.from(match[2],'base64'),name='avatar-'+createHash('sha256').update(bytes).digest('hex')+'.'+match[1];
  try{fs.writeFileSync(path.join(directory,'assets',name),bytes,{flag:'wx',mode:0o600});}catch(e){if(e.code!=='EEXIST')throw e;}
  return name.replace('avatar-','avatar:');

@@ -1238,3 +1238,13 @@ dialog { overflow:hidden; }
 .person-link-editor{display:grid;gap:9px;padding:14px;border-top:1px solid #e5e5e5}.person-link-editor small{color:var(--muted);line-height:1.5}.person-link-editor select{width:100%;min-width:0}
 
 .person-avatar-gallery{display:flex;flex-wrap:wrap;gap:6px}.person-avatar-gallery button{padding:2px;border:1px solid #ddd;border-radius:50%}.person-avatar-gallery img{display:block;width:36px;height:36px;object-fit:cover;border-radius:50%}
+
+.avatar-crop-dialog{width:min(460px,90vw);padding:24px;border:1px solid #dedede;border-radius:14px;color:var(--text);background:#fff}
+.avatar-crop-dialog::backdrop{background:#0006}
+.avatar-crop-dialog h2{margin:0 0 8px}.avatar-crop-dialog p{font-size:13px;color:#777}
+.avatar-crop-dialog canvas{display:block;width:100%;aspect-ratio:1;border:1px solid #ccc;cursor:move;touch-action:none;margin:16px 0}
+.avatar-crop-dialog label{display:flex;gap:12px;align-items:center}.avatar-crop-dialog input{flex:1}
+.avatar-crop-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.avatar-crop-actions button{padding:8px 14px;border:1px solid #ddd;border-radius:8px}.avatar-crop-actions [data-crop-confirm]{background:#252525;color:white}
+.source-scroll-track{position:relative;display:flex;justify-content:center;flex:1;min-height:80px;width:100%}
+.source-scroll-track input[type=range]{height:100%;margin:0}
+[data-playback-marker]{position:absolute;left:0;right:0;height:2px;background:#df4545;z-index:2;pointer-events:none;transform:translateY(-1px)}
