@@ -2,6 +2,8 @@
 
 状态：用户于 2026-09-25 要求预留，当前为产品规划与文档占位，尚未在客户端投放广告或发布软文。
 
+官方入口：[FreeNote 下载](https://freenote.patch-x.cn/download/)、[MCP 接入](https://freenote.patch-x.cn/mcp/setup/)、[Agent 仓库](https://github.com/ZsTs119/patchx-freenote-agent)。README 已补充来源致谢与开放协作说明；链接和致谢不代表正式合作或模型再分发授权。
+
 ## 硬件录音广告位
 
 - 预留标识：`patchx-freenote-recorder`。
@@ -18,6 +20,6 @@
 
 ## 与模型对照记录的关系
 
-[SenseVoice 模型对照](sensevoice-model-comparison.md)记录了 Mac 提供模型在同一 Windows 环境下的原始输出差异。用户提供的来源是 PatchxNote 内置 patchnote-standard 0.2.0；此名称与拟推广的 PatchX Freenote 分别保留，尚未确认二者品牌或产品关系，不擅自合并命名。
+[SenseVoice 模型对照](sensevoice-model-comparison.md)记录了 Mac 提供模型在同一 Windows 环境下的原始输出差异。用户提供的来源是 PatchxNote 内置 patchnote-standard 0.2.0；官方 Agent 仓库现已说明 PatchX Freenote 原名 PatchXNote。保留测试时的包名，避免把产品更名误写成模型版本变化。用户在 2026-09-25 的交流中确认官方已说明基于 SenseVoiceSmall 微调；这不等于本次已独立核实具体权重的微调批次或授权范围。
 
 模型切换仍等待用户决定；本合作规划不触发模型替换、配置变更或依赖升级。

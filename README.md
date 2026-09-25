@@ -47,6 +47,18 @@ HOTPOOR SayAgain 希望把真实对话变成持续的语言练习：发现值得
 
 ## 模型验证与合作展示预留
 
+### 来源致谢与开放协作
+
+感谢 [SenseVoiceSmall / SenseVoice 团队](https://github.com/QwenAudio/SenseVoice)提供语音理解模型，也感谢 [PatchX FreeNote](https://freenote.patch-x.cn/download/) 团队在此基础上的微调与产品优化。开发者在本次交流中确认，PatchX 官方已说明其使用 SenseVoiceSmall 进行微调；具体模型版本与测试范围见下方对照记录，单个样例的改善不代表所有场景的准确率结论。
+
+FreeNote 提供[官方 MCP 接入说明](https://freenote.patch-x.cn/mcp/setup/)与[公开 Agent 仓库](https://github.com/ZsTs119/patchx-freenote-agent)。开发者已接入 MCP，并根据实际执行结果分析调用策略、优化自己的使用流程，希望以可复现的问题和改进结果向官方反馈。这里记录的是开发者的使用实践，不表示 SayAgain 已内置 FreeNote MCP 集成。
+
+我们希望开源产品之间的交流建立在真实体验和相互尊重上：注明上游与改进者的贡献，保留失败与改善的证据，让用户有机会按自己的需求调整工作流程。对内部实现的解释应标明推测，不将行为观察写成已确认的源码事实；公开接口接入、自有代码开源与第三方模型权重的使用、再分发许可分别核对。署名与致谢不替代许可，也不表示双方已有正式合作。模型权重的许可应以具体制品附带条款为准，参见 [SenseVoice 官方许可说明](https://github.com/QwenAudio/SenseVoice#license)。
+
+我们认为，开放 MCP 的价值应体现在用户能把自己的记录和已开放能力接入更合适的工作流程。遇到软件体验问题时，开发者应持续改善自己的调用方式，并把实际结果反馈给提供方。Electron/Web 客户端的可观察性也有助于理解交互与客户端流程，但客户端可见内容不等于全部服务端策略，技术上可查看与许可上可复制、再分发仍应区分。
+
+### 测试与展示规划
+
 - [SenseVoice 模型对照记录](docs/sensevoice-model-comparison.md)：同一 Windows 环境四组测试，记录文件指纹、原始输出与耗时；尚未切换应用模型。
 - [PatchX Freenote 合作展示预留](docs/patchx-freenote.md)：预留硬件录音广告位和软文位置，待补素材与正式内容；当前为规划占位。
 
