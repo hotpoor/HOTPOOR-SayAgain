@@ -113,7 +113,8 @@ def main():
     print('Reproduced exact archive and asset hashes: ' + args.model, flush=True)
     if args.upload:
         repo = 'hotpoor/HOTPOOR-SayAgain'
-        release = json.loads(gh('api', f'repos/{repo}/releases/tags/{manifest["release"]}'))
+        releases = json.loads(gh('api', f'repos/{repo}/releases?per_page=100'))
+        release = next(r for r in releases if r['tag_name'] == manifest['release'])
         assert release['draft'], 'Only upload into a draft Release'
         existing = {a['name']: a for a in release['assets']}
         for path, asset in zip(paths, model['assets']):
@@ -124,7 +125,9 @@ def main():
             if previous:
                 assert previous['size'] == asset['size'] and previous.get('digest') == 'sha256:' + asset['sha256'], path.name
             else:
-                subprocess.run(['gh', 'release', 'upload', manifest['release'], str(path), '--repo', repo], check=True)
+                upload_url = release['upload_url'].split('{')[0] + '?name=' + path.name
+                gh('api', '--method', 'POST', upload_url, '--header',
+                   'Content-Type: application/octet-stream', '--input', str(path))
         release = json.loads(gh('api', f'repos/{repo}/releases/{release["id"]}'))
         uploaded = {a['name']: a for a in release['assets']}
         for asset in model['assets']:
