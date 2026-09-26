@@ -30,7 +30,7 @@ module.exports=Service=>{
     if(oldPerson){const i=profiles.findIndex(p=>p.key===input.key);profiles[i]={...profiles[i],name:oldPerson.body.name,note:oldPerson.body.note,avatar:previous.avatar_override||oldPerson.body.avatar||'',color:previous.color_override||oldPerson.body.color||null};}
    }
    else {
-    if(input.person_id){person=this.entity(input.person_id,'recording_person');if(person.body.profile_id!==this.profileId)throw Error('人物不可用');}
+    if(input.person_id){person=this.entity(input.person_id,'recording_person');if(person.body.profile_id!==this.profileId||person.body.status!=='active')throw Error('人物不可用');}
     else if(input.target_key){
      if(!exists(input.target_key)||input.target_key===input.key)throw Error('请选择另一个说话人');
      const target=profiles.find(p=>p.key===input.target_key)||{key:input.target_key};

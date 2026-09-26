@@ -1,0 +1,39 @@
+--- a/sherpa-onnx/csrc/offline-sense-voice-model.cc
++++ b/sherpa-onnx/csrc/offline-sense-voice-model.cc
+@@ -22,8 +22,7 @@
+         env_(ORT_LOGGING_LEVEL_ERROR),
+         sess_opts_(GetSessionOptions(config)),
+         allocator_{} {
+-    auto buf = ReadFile(config_.sense_voice.model);
+-    Init(buf.data(), buf.size());
++    Init(nullptr, 0);
+   }
+ 
+ #if __ANDROID_API__ >= 9
+@@ -60,8 +59,11 @@
+ 
+  private:
+   void Init(void *model_data, size_t model_data_length) {
+-    sess_ = std::make_unique<Ort::Session>(env_, model_data, model_data_length,
+-                                           sess_opts_);
++    if (model_data) {
++      sess_ = std::make_unique<Ort::Session>(env_, model_data, model_data_length, sess_opts_);
++    } else {
++      sess_ = std::make_unique<Ort::Session>(env_, config_.sense_voice.model.c_str(), sess_opts_);
++    }
+ 
+     GetInputNames(sess_.get(), &input_names_, &input_names_ptr_);
+ 
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -41,6 +41,10 @@
+   Provider p = StringToProvider(provider_str);
+ 
+   Ort::SessionOptions sess_opts;
++  sess_opts.DisableCpuMemArena();
++  sess_opts.DisableMemPattern();
++  sess_opts.AddConfigEntry("session.disable_prepacking", "1");
++  sess_opts.SetGraphOptimizationLevel(ORT_ENABLE_BASIC);
+   sess_opts.SetIntraOpNumThreads(num_threads);
+ 
+   sess_opts.SetInterOpNumThreads(num_threads);

@@ -1,0 +1,8 @@
+build/
+*.xcuserstate
+xcuserdata/
+*.xcresult
+*.ipa
+*.app
+*.secret
+test-results/

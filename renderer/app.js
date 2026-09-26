@@ -50,7 +50,7 @@ function timelineTicks(ms){return '<div class="timeline-ticks" aria-hidden="true
 const editor = $('#editor');
 function notify(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 4500); }
 function errorMessage(error) { return String(error.message || error).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
-async function refresh() { state = await api.state(); render(); }
+async function refresh() { if(window.unsaved?.has()&&!await window.unsaved.permit())return;state = await api.state(); render(); }
 function stopPlayer() {
   playerCleanup?.(); playerCleanup = null;
   cancelAnimationFrame(playerFrame); playerFrame = null;
@@ -67,13 +67,15 @@ function render() {
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
   document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的音频',people:'人物形象',settings:'设置'}[page];
+  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的音频',people:'人物形象',archive:'归档列表',settings:'设置'}[page];
   if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
   if (page === 'people') window.peoplePage.render($('#main'),state,refresh);
   if (page === 'voices') renderVoices();
   if (page === 'recordings') window.recordingPage.render($('#main'),state);
   if (page === 'settings') renderSettings();
+  if (page === 'archive') window.archivePage.render($('#main'),state,refresh);
+  window.workflows.decorate($('#main'),state,page,refresh);
 }
 function languageField(name, label, value) {
   return `<label class="field">${label}<input name="${name}" list="language-options" value="${escapeHtml(value)}" required maxlength="50" placeholder="例如 zh-CN、en-US"><small>可输入任意有效的语言代码</small></label>`;
@@ -118,7 +120,7 @@ function renderReviewResults(entries) {
   if (!entries.length) {
     $('#entries').innerHTML = `<section class="empty"><div class="empty-symbol">${icon('messages')}</div><h2>${state.expressions.length ? '这里还没有符合条件的表达' : '让下一次表达，更像你。'}</h2><p>${state.expressions.length ? '换一个关键词或筛选条件，找回想练习的那句话。' : '记下一句想说得更好的话，留下建议和原因。你的个人表达库，从这里开始。'}</p><div class="empty-actions"><button class="button primary" data-action="add-expression">记录第一句</button>${!state.expressions.length && config.native_language.startsWith('zh') && config.target_language.startsWith('en') ? '<button class="button" data-action="example">填入一条示例</button>' : ''}</div></section>`; return;
   }
-  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${escapeHtml(Object.hasOwn(categories,b.category)?categories[b.category]:(b.category||'表达'))}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button><span class="tag">${b.source==='skill'?'Skill 评估':'手动记录'}</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}${synthesisMarkup(id)}</div></article>`).join('');
+  $('#entries').innerHTML = entries.map(({block_id:id,body:b,createtime}) => `<article class="entry" data-entry="${id}"><div class="expression-column"><div class="meta"><span class="tag">${escapeHtml(Object.hasOwn(categories,b.category)?categories[b.category]:(b.category||'表达'))}</span><span>${date(createtime)}</span><span>${escapeHtml(b.language_pair.target_language)}</span></div><span class="label">当时的表达</span><p class="original" dir="auto">${escapeHtml(b.original)}</p><span class="label">可以这样说</span><p class="improved" dir="auto">${escapeHtml(b.improved)}</p>${b.translation ? `<p class="translation" dir="auto">${escapeHtml(b.translation)}</p>` : ''}<div class="entry-actions"><button data-action="favorite" data-id="${id}" class="${b.favorite ? 'selected' : ''}" aria-pressed="${!!b.favorite}">${icon('star')}${b.favorite ? '已收藏' : '收藏'}</button><button data-action="edit-expression" data-id="${id}">编辑</button><button data-action="archive-expression" data-id="${id}">${icon('archive')}${b.status === 'archived' ? '恢复' : '归档'}</button>${b.source_recording_id?`<button data-action="open-recording-source" data-id="${id}">查看原录音</button>`:''}<span class="tag">${b.source==='skill'?'Skill 评估':b.source==='recording'?'录音选句':'手动记录'}</span></div></div><div class="practice-column"><h3 class="explanation-label">${icon('edit')} 修改原因</h3><p class="explanation" dir="auto">${escapeHtml(b.explanation || '尚未填写修改说明。')}</p>${b.pattern ? `<div class="pattern"><span class="label">可复用句型</span><span dir="auto">${escapeHtml(b.pattern)}</span></div>` : ''}${synthesisMarkup(id)}</div></article>`).join('');
 }
 function renderVoices() {
   stopPlayer();
@@ -135,7 +137,7 @@ function voiceMarkup({block_id:id, body:b, createtime}) {
 }
 function sampleMarkup({block_id:id,body:b,createtime}, voice) {
   const bars = b.waveform.map((v,i) => `<line x1="${i*5+2}" y1="${22-v*19}" x2="${i*5+2}" y2="${22+v*19}" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>`).join('');
-  return `<section class="sample" data-sample="${id}"><div class="sample-header"><span>${escapeHtml(b.language)} · ${b.recorded_at ? '录制' : '导入'} ${date(b.recorded_at || createtime)}</span>${voice.default_sample_id === id ? '<span class="tag">默认样本</span>' : voice.status === 'active' ? `<button class="button quiet" data-action="default-sample" data-id="${id}" data-voice="${b.voice_id}">设为默认</button>` : ''}</div><div class="player"><button class="player-play" aria-label="播放参考录音" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" step="any" value="0" aria-label="录音播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${b.transcript ? `<p class="sample-transcript" dir="auto">${escapeHtml(b.transcript)}</p>` : ''}</section>`;
+  return `<section class="sample" data-sample="${id}"><div class="sample-header"><button class="button quiet" data-action="edit-sample" data-id="${id}">编辑</button><button class="button quiet" data-action="archive-sample" data-id="${id}">归档</button><span>${escapeHtml(b.language)} · ${b.recorded_at ? '录制' : '导入'} ${date(b.recorded_at || createtime)}</span>${voice.default_sample_id === id ? '<span class="tag">默认样本</span>' : voice.status === 'active' ? `<button class="button quiet" data-action="default-sample" data-id="${id}" data-voice="${b.voice_id}">设为默认</button>` : ''}</div><div class="player"><button class="player-play" aria-label="播放参考录音" data-action="play" data-id="${id}">${icon('play')}</button><div class="waveform"><svg viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">${bars}<line data-progress x1="0" x2="0" y1="0" y2="44" stroke="#444" stroke-width="1"/></svg><input type="range" min="0" max="1000" step="any" value="0" aria-label="录音播放进度" data-seek="${id}">${timelineTicks(b.duration_ms)}</div><span class="time">0:00 / ${duration(b.duration_ms)}</span><button class="speed" data-action="speed" data-id="${id}" aria-label="切换慢速播放">1×</button></div>${b.transcript ? `<p class="sample-transcript" dir="auto">${escapeHtml(b.transcript)}</p>` : ''}</section>`;
 }
 function apiKeyRow(key,active=false){return `<div class="api-key-row" data-key-id="${escapeHtml(key.id)}"><div class="key-row-heading"><label class="key-active"><input type="radio" name="active_key_id" value="${escapeHtml(key.id)}" ${active?'checked':''}>用于生成</label><input class="key-name" aria-label="Key 名称" maxlength="120" placeholder="备注名称，例如个人、工作" value="${escapeHtml(key.name)}"><button type="button" class="button quiet" data-action="remove-api-key">删除</button></div><span class="key-input"><input class="key-value" aria-label="API Key" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一个完整的 API Key" value="${escapeHtml(key.key)}"><button type="button" class="icon-button key-visibility" data-action="toggle-api-key" aria-label="隐藏 API Key" aria-pressed="true" title="隐藏 API Key">${icon('eyeOff')}</button></span></div>`;}
 function renderSettings() {
@@ -146,7 +148,7 @@ function renderSettings() {
   <section class="settings-section" id="cloud-settings"><h2>Qwen 云端 · 音色克隆与语音生成</h2><p>空间不足时，可主动选择千问AI平台云端。云端会发送选定参考录音和文本，按平台计费；不会自动切换。</p><form id="speech-form">${speech.api_key_error?`<div class="model-notice" role="alert">${escapeHtml(speech.api_key_error)}</div>`:''}<fieldset class="choice-field"><legend>生成方式</legend><div class="mode-choices"><label class="model-choice"><input type="radio" name="mode" value="local"><span class="choice-mark" aria-hidden="true"></span><span>本地 Qwen3-TTS</span></label><label class="model-choice"><input type="radio" name="mode" value="cloud"><span class="choice-mark" aria-hidden="true"></span><span>千问AI平台云端</span></label></div></fieldset>${modelPicker('cloud_model',speech.cloud_model)}<div class="field"><span>Qwen AK / API Keys</span><div id="api-key-list">正在读取已保存的 Key…</div><button type="button" class="button quiet" data-action="add-api-key">＋ 添加 Key</button><small>可分别命名和编辑，选中一个用于生成。Key 明文保存在本机，不写入备份。</small></div><label class="checkbox"><input name="cloud_enabled" type="checkbox" ${speech.config.body.cloud_enabled?'checked':''}>主动启用云端合成</label><p class="quiet-note">使用平台 API Key（AK），此接口不需要填写应用名称。保存设置不会发起付费请求。</p><p class="form-error" role="alert"></p><div class="form-actions"><button class="button primary" type="submit">保存语音设置</button><button class="button" type="button" data-action="cloud-platform">打开 Qwen 平台 ↗</button></div></form></section>
   <section class="settings-section"><h2>截图与快捷键</h2><p>截取当前屏幕并复制到剪贴板。HOTPOOR 应用共用快捷键，按优先级自动接管监听。</p><button class="button" data-action="screenshot-settings">设置截图快捷键</button></section>
   <section class="settings-section"><h2>语音识别模型</h2>${window.modelEvidenceView.render()}</section>
-  <section class="settings-section"><h2>本地数据</h2><p>三个 SQLite 数据库与录音文件保存在此处。备份包含数据库与音频，不包含 API Key 或模型权重。</p><code class="path">${escapeHtml(state.directory)}</code><button class="button" data-action="backup">导出完整备份</button></section></div></div>`;
+  <section class="settings-section"><h2>本地数据</h2><p>三个 SQLite 数据库与录音文件保存在此处。备份包含数据库与音频，不包含 API Key 或模型权重。</p><code class="path">${escapeHtml(state.directory)}</code><button class="button" data-action="backup">导出完整备份</button><button class="button" data-action="restore-backup">从备份恢复</button></section></div></div>`;
   const keyList=$('#api-key-list'),saveButton=$('#speech-form button[type="submit"]');saveButton.disabled=true;
   api.listApiKeys().then(value=>{if(!keyList.isConnected)return;keyList.innerHTML='';for(const key of value.keys)keyList.insertAdjacentHTML('beforeend',apiKeyRow(key,key.id===value.active_id));if(!value.keys.length)keyList.innerHTML=apiKeyRow({id:crypto.randomUUID(),name:'默认 Key',key:''},true);saveButton.disabled=false;}).catch(error=>{if(keyList.isConnected){keyList.textContent=errorMessage(error);}});
   const cloudSection=$('#cloud-settings');
@@ -224,7 +226,7 @@ async function generateWithDefaults(id,button){
 function synthesisMarkup(expressionId) {
   const items=state.syntheses.filter(s=>s.body.expression_id===expressionId);
   const labels={queued:'等待生成',running:'正在生成',failed:'生成失败',cancelled:'已取消',succeeded:'已生成'};
-  return `<div class="practice">${icon('wave')}<span>用我的声音听与练</span><button class="button quiet" data-action="synthesize" data-id="${expressionId}">生成语音</button></div>${items.map(item=>{const b=item.body,voice=state.voices.find(v=>v.block_id===b.voice_id);return `<div class="synthesis"><div class="sample-header"><span>${escapeHtml(voice?.body.name||'历史音色')} · ${b.provider==='cloud'?'千问云端':'本地'} · ${labels[b.status]||b.status}</span>${['queued','running'].includes(b.status)?`<button class="button quiet" data-action="cancel-synthesis" data-id="${item.block_id}">取消</button>`:''}</div><div class="synthesis-model">模型 · <span>${escapeHtml(b.model_id||'历史记录未标注')}</span></div>${b.status==='succeeded'?playbackMarkup(item.block_id,b):b.error?`<p class="form-error">${escapeHtml(b.error)}</p>`:''}</div>`;}).join('')}`;
+  return `<div class="practice">${icon('wave')}<span>用我的声音听与练</span><button class="button quiet" data-action="synthesize" data-id="${expressionId}">生成语音</button></div>${items.map(item=>{const b=item.body,voice=state.voices.find(v=>v.block_id===b.voice_id);return `<div class="synthesis"><div class="sample-header"><span>${escapeHtml(voice?.body.name||'历史音色')} · ${b.provider==='cloud'?'千问云端':'本地'} · ${labels[b.status]||b.status}</span>${['queued','running'].includes(b.status)?`<button class="button quiet" data-action="cancel-synthesis" data-id="${item.block_id}">取消</button>`:''}</div><button class="button quiet" data-export-audio="${item.block_id}" ${b.status!=='succeeded'?'disabled':''}>导出音频</button><div class="synthesis-model">模型 · <span>${escapeHtml(b.model_id||'历史记录未标注')}</span></div>${b.content_revision!==state.expressions.find(e=>e.block_id===expressionId)?.body.content_revision?`<p class="form-hint">修改前的语音 · ${escapeHtml(b.text_snapshot||'历史表达')}</p>`:''}${b.status==='succeeded'?playbackMarkup(item.block_id,b):b.error?`<p class="form-error">${escapeHtml(b.error)}</p>`:''}</div>`;}).join('')}`;
 }
 function playbackMarkup(id,b) {
  const bars=(b.waveform||[]).map((v,i)=>`<line x1="${i*5+2}" y1="${22-v*19}" x2="${i*5+2}" y2="${22+v*19}" stroke="#999" stroke-width="2.5" stroke-linecap="round"/>`).join('');
@@ -238,6 +240,18 @@ function openDialog(mode, id, example=false) {
   if (mode === 'expression') {
     $('#dialog-title').textContent = example ? '试着记录一条示例' : '记录一句话';
     $('#editor-fields').innerHTML = `<p class="form-hint">保存你整理好的表达建议；这里不会自动调用模型。当前语言：${escapeHtml(state.config.body.native_language)} → ${escapeHtml(state.config.body.target_language)}</p>${field('original','当时的表达',example ? 'I very like this idea.' : '', 'required maxlength="10000"')}${field('improved','可以这样说',example ? 'I really like this idea.' : '', 'required maxlength="10000"')}${field('translation','母语译文',example ? '我很喜欢这个想法。' : '')}<label class="field">类别标签（可自定义）<input name="category" list="category-suggestions" required value="自然表达" placeholder="选择常用类别，或填写具体问题"><datalist id="category-suggestions">${Array.from(new Set([...Object.values(categories),...state.expressions.map(e=>Object.hasOwn(categories,e.body.category)?categories[e.body.category]:e.body.category).filter(Boolean)])).map(value=>`<option value="${escapeHtml(value)}"></option>`).join('')}</datalist></label>${field('explanation','修改原因',example ? 'really 可以修饰动词 like，very 通常修饰形容词或副词。' : '')}${field('pattern','可复用句型',example ? 'I really like + 名词 / 动名词.' : '')}`;
+    if(id){
+      const record=state.expressions.find(e=>e.block_id===id);
+      $('#dialog-title').textContent='编辑表达';
+      $('#editor-fields .form-hint').textContent=`编辑已保存的表达。语言：${record.body.language_pair.native_language} → ${record.body.language_pair.target_language}`;
+      for(const key of ['original','improved','translation','category','explanation','pattern'])$('#editor-fields [name="'+key+'"]').value=record.body[key]||'';
+      editor.dataset.revision=record.body.revision;
+    }
+  } else if(mode==='edit-sample'){
+    const sample=state.samples.find(s=>s.block_id===id);
+    editor.dataset.revision=sample.body.revision;
+    $('#dialog-title').textContent='编辑参考录音';
+    $('#editor-fields').innerHTML=`${languageField('language','录音所用语言',sample.body.language)}${languageOptions()}${field('transcript','录音原文',sample.body.transcript||'','maxlength="10000"')}<p class="form-hint">修改语言和原文，原始音频保持不变。</p>`;
   } else if (mode === 'voice') {
     const voice = state.voices.find(v => v.block_id === id)?.body;
     $('#dialog-title').textContent = voice ? '编辑音色' : '新建音色';
@@ -246,7 +260,7 @@ function openDialog(mode, id, example=false) {
     if((state.speech.config.body.mode==='local'&&(!state.speech.local.space_ok||!state.speech.local.installed))&&!state.speech.has_api_key){page='settings';render();$('#local-model').scrollIntoView({behavior:'smooth'});notify('本地模型尚未就绪，请让 SayAgain Skill 检查和配置；也可自行选择云端模式');return;}
     const defaultsOnly=mode==='speech-defaults';
     const expression=state.expressions.find(e=>e.block_id===id), cloud=state.speech.config.body.mode==='cloud';
-    const voices=state.voices.filter(v=>v.body.status==='active'&&v.body.default_sample_id);
+    const voices=state.voices.filter(v=>!v.body.practice_only&&v.body.status==='active'&&v.body.default_sample_id);
     const model=cloud?state.speech.cloud_model:state.speech.local.model_id;
     $('#dialog-title').textContent=defaultsOnly?'默认语音设置':cloud?'使用千问AI平台生成':'使用本地 Qwen3-TTS 生成';
     $('#editor-fields').innerHTML=`${defaultsOnly?'<p class="form-hint">保存默认模型与音色；点击「生成语音」时使用这些设置。</p>':`<p class="synthesis-text" dir="auto">${escapeHtml(expression.body.improved)}</p>`}${cloud?`${modelPicker(defaultsOnly?'cloud_model':'model_id',model)}${defaultsOnly?'':`<label class="checkbox"><input type="checkbox" name="set_default_model">同时设为默认模型</label>`}`:`<div class="synthesis-model">本次模型 · <span>${escapeHtml(model)}</span></div>`}<fieldset class="choice-field"><legend>我的音色</legend><div class="voice-choices">${voices.map((v,i)=>`<label class="model-choice"><input type="radio" name="voice_id" value="${v.block_id}" ${i===0?'checked':''} required><span class="choice-mark" aria-hidden="true"></span><span>${escapeHtml(v.body.name)}</span></label>`).join('')}</div></fieldset><p class="form-hint">将使用所选音色的默认样本。${cloud?'需要 10–60 秒参考录音，建议 10–20 秒；按平台计费。':'录音与文字均在本机处理。'}</p>${cloud?'<label class="checkbox"><input type="checkbox" name="cloud_consent" required>同意将所选参考录音和待生成文字发送到千问AI平台；若启用直接生成，此授权用于之后手动点击的生成请求，按平台计费。</label>':''}<label class="checkbox"><input type="checkbox" name="reuse_defaults">以后使用这些设置直接生成</label><p class="form-hint">可随时在顶部「语音设置」关闭；更换模型、音色或参考录音后需重新确认。</p>${!voices.length?'<p class="form-error">请先在「我的音色」中创建音色并添加录音。</p>':''}`;
@@ -313,7 +327,7 @@ async function toggleRecording() {
       $('#record-button').textContent = '重新录音'; $('#record-status').textContent = '录音已停止'; $('#record-status').classList.remove('recording'); $('#audio-file').disabled = false; $('#import-button').disabled=false;
       try { await prepareAudio(new Blob(chunks,{type:'audio/webm'}),'microphone'); } catch (e) { $('#form-error').textContent = errorMessage(e); }
     };
-    recording.start(1000); const started = Date.now();
+    recording.start(1000);window.unsaved.mark($('#editor-form')); const started = Date.now();
     $('#record-button').textContent = '停止录音'; $('#record-status').classList.add('recording'); $('#audio-file').disabled = true; $('#import-button').disabled=true;
     recordingTimer = setInterval(() => { const elapsed=Date.now()-started; $('#record-status').textContent='正在聆听…'; $('#live-time').textContent=duration(elapsed); if(elapsed>=590000 && recording?.state==='recording') recording.stop(); },250);
   } catch(error) { stopLiveWave();microphone?.getTracks().forEach(t=>t.stop());microphone=null;throw error; } finally { if ($('#record-button')) $('#record-button').disabled = false; }
@@ -385,6 +399,19 @@ document.addEventListener('click', async event => {
       case 'synthesize': await generateWithDefaults(id,button);break;
       case 'cancel-synthesis': await api.cancelSynthesis({id});await refresh();break;
       case 'fullscreen': await api.fullscreen(); break;
+      case 'open-recording-source': {
+        if(!await window.unsaved.permit())break;
+        const expression=state.expressions.find(e=>e.block_id===id);if(!expression)break;
+        if(!state.recordings.some(r=>r.block_id===expression.body.source_recording_id)){page='archive';render();notify('原会话已归档或删除，请在归档列表查看');break;}
+        window.recordingPage.open(expression.body.source_recording_id);page='recordings';render();
+        const clip=document.querySelector(`[data-clip="${expression.body.source_clip_id}"]`);if(clip){const group=clip.closest('.conversation-source');if(group)group.open=true;clip.scrollIntoView({block:'center'});}break;
+      }
+      case 'edit-expression': openDialog('expression',id);break;
+      case 'edit-sample': openDialog('edit-sample',id);break;
+      case 'archive-sample': {
+        const record=state.samples.find(r=>r.block_id===id);
+        await api.editSample({id,revision:record.body.revision,action:'archive'});await refresh();notify('已归档，可在归档列表恢复');break;
+      }
       case 'add-expression': openDialog('expression'); break;
       case 'example': openDialog('expression',null,true); break;
       case 'add-voice': openDialog('voice'); break;
@@ -410,6 +437,12 @@ document.addEventListener('click', async event => {
       case 'play': await playSample(id);break;
       case 'speed': if(playerSampleId!==id) await playSample(id);player.playbackRate=player.playbackRate===1?0.75:1;button.textContent=player.playbackRate+'×';break;
       case 'screenshot-settings': await api.screenshotSettings(); break;
+      case 'restore-backup': {
+        if(!await window.unsaved.permit())break;
+        const summary=await api.inspectBackup();if(!summary)break;
+        const done=await window.itemEditor({title:'恢复这个备份？',message:`备份中有 ${summary.expressions} 条表达、${summary.recordings} 个录音会话、${summary.voices} 个音色。当前数据会先自动备份，再整体替换；本机 API Key 保留。`,submit:'备份当前数据并恢复',onSave:async()=>{const result=await api.restoreBackup();window.unsaved.clear();notify('恢复完成，原数据备份：'+result.safety_backup);}});
+        if(done){page='review';await refresh();}break;
+      }
       case 'backup': { const location=await api.backup();if(location)notify(`备份已保存：${location}`);break; }
     }
   } catch(error) { if(editor.open) $('#form-error').textContent=errorMessage(error);else notify(errorMessage(error)); }
@@ -437,8 +470,8 @@ document.addEventListener('submit',async event=>{
   event.preventDefault(); const form=event.target; const submit=form.querySelector('[type="submit"]');submit.disabled=true;
   try {
     const values=Object.fromEntries(new FormData(form));
-    if(form.id==='language-form') { await api.saveSettings({...values,revision:state.config.body.revision}); await refresh();notify('语言设置已保存'); }
-    if(form.id==='speech-form'){const keys=Array.from(form.querySelectorAll('.api-key-row')).map(row=>({id:row.dataset.keyId,name:row.querySelector('.key-name').value,key:row.querySelector('.key-value').value}));await api.speechSettings({...values,keys,cloud_enabled:values.cloud_enabled==='on'});form.reset();await refresh();notify('语音设置已保存');}
+    if(form.id==='language-form') { await api.saveSettings({...values,revision:state.config.body.revision}); window.unsaved.clear(form);await refresh();notify('语言设置已保存'); }
+    if(form.id==='speech-form'){const keys=Array.from(form.querySelectorAll('.api-key-row')).map(row=>({id:row.dataset.keyId,name:row.querySelector('.key-name').value,key:row.querySelector('.key-value').value}));await api.speechSettings({...values,keys,cloud_enabled:values.cloud_enabled==='on'});window.unsaved.clear(form);form.reset();await refresh();notify('语音设置已保存');}
     if(form.id==='editor-form') {
       if(dialogMode==='speech-defaults'){
         await api.speechSettings({mode:state.speech.config.body.mode,cloud_enabled:state.speech.config.body.cloud_enabled,cloud_model:values.cloud_model||state.speech.cloud_model});
@@ -448,16 +481,17 @@ document.addEventListener('submit',async event=>{
         await api.synthesize({expression_id:editing,voice_id:values.voice_id,model_id:values.model_id,set_default_model:values.set_default_model==='on'||values.reuse_defaults==='on',cloud_consent:values.cloud_consent==='on'});
         state=await api.state();rememberSpeechDefaults(values);
       }
-      if(dialogMode==='expression') await api.addExpression(values);
+      if(dialogMode==='expression') {if(editing)await api.editExpression({...values,id:editing,revision:Number(editor.dataset.revision),action:'save'});else await api.addExpression(values);}
+      if(dialogMode==='edit-sample')await api.editSample({...values,id:editing,revision:Number(editor.dataset.revision),action:'save'});
       if(dialogMode==='voice') await api.saveVoice({...values,id:editing,revision:state.voices.find(v=>v.block_id===editing)?.body.revision});
       if(dialogMode==='sample') { buildClip();if(!pendingAudio) throw new Error('请先录制或导入音频');await api.addSample({...values,...pendingAudio,voice_id:editing}); }
-      editor.close(); await refresh();notify('已保存到本地');
+      window.unsaved.clear(form);editor.close(); await refresh();notify('已保存到本地');
     }
   }catch(error){form.querySelector('.form-error').textContent=errorMessage(error);}finally{submit.disabled=false;}
 });
 editor.addEventListener('close',cleanupRecording);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!editor.open)api.fullscreen(true).catch(()=>{});});
 api.onFullscreen(full=>{const button=$('#fullscreen');button.setAttribute('aria-label',full?'退出全屏':'进入全屏');button.title=button.getAttribute('aria-label');});
-api.onChange(async()=>{try{state=await api.state();window.synthesisQueue.update(state);if(!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
+api.onChange(async()=>{try{state=await api.state();window.synthesisQueue.update(state);if(!window.unsaved.has()&&!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
 fillIcons();
 refresh().catch(error=>{$('#main').innerHTML=`<div class="page"><h1>无法打开本地数据</h1><p class="form-error">${escapeHtml(errorMessage(error))}</p></div>`;});

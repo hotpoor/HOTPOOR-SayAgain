@@ -32,3 +32,10 @@ sayagain-connection.json
 
 # Generated macOS screenshot helper
 /desktop/screenshot/bin/
+
+# Generated native iOS runtime and local speech model
+/ios/SayAgain/NativeASR/lib/
+/ios/SayAgain/NativeASR/include/
+/ios/SayAgain/LocalASRResources/
+
+/ios/SayAgain/NativeASR/onnxruntime.framework/

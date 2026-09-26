@@ -20,6 +20,7 @@ class Service {
       let profile = this.store.list('profile')[0];
       if (!profile) profile = this.store.put({ type: 'profile', display_name: '本地学习者', native_language: 'zh-CN', ui_language: 'zh-CN', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
       this.profileId = profile.block_id;
+      for(const record of this.store.all())if(record.body.status==='deleted'&&['expression','voice_sample','recording','recording_clip','recording_source'].includes(record.body.type))this.update(record,{status:'archived',archived_at:record.body.deleted_at||Date.now(),deleted_at:null,user_archived:true});
       if (!this.store.list('learning_config').length) this.store.put({ type: 'learning_config', profile_id: this.profileId, native_language: 'zh-CN', target_language: 'en-US', explanation_language: 'zh-CN', onboarding_complete: false, default_voice_ids: [], auto_synthesize: false, waveform_expanded: true });
     });
   }
@@ -27,12 +28,12 @@ class Service {
   state() {
     const avatar=value=>require('./recording-avatars.cjs').read(this.directory,value);
     const people=this.store.list('recording_person').filter(p=>p.body.profile_id===this.profileId).map(p=>({...p,body:{...p.body,avatar:avatar(p.body.avatar),avatars:(p.body.avatars||[]).map(avatar)}})),byId=new Map(people.map(p=>[p.block_id,p]));
-    const recordings=this.store.list('recording').map(s=>({...s,body:{...s.body,speaker_profiles:(s.body.speaker_profiles||[]).map(p=>{const person=byId.get(p.person_id);return person?{...p,name:person.body.name,note:person.body.note,avatar:avatar(p.avatar_override)||person.body.avatar,color:p.color_override||person.body.color||null,person_color:person.body.color||null,person_avatar:person.body.avatar,person_revision:person.body.revision}:{...p,avatar:avatar(p.avatar)};})}}));
-    return { recording_people:people,recordings,recording_sources:this.store.list('recording_source'),recording_clips:this.store.list('recording_clip').filter(c=>c.body.status!=='archived'),config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), synthesis_queue: this.store.list('job').reverse().filter(j=>j.body.kind==='synthesis'&&j.body.status==='queued').map(j=>j.body.target_id), directory: this.directory };
+    const recordings=this.store.list('recording').filter(s=>s.body.status==='active').map(s=>({...s,body:{...s.body,speaker_profiles:(s.body.speaker_profiles||[]).map(p=>{const person=byId.get(p.person_id);return person?{...p,name:person.body.name,note:person.body.note,avatar:avatar(p.avatar_override)||person.body.avatar,color:p.color_override||person.body.color||null,person_color:person.body.color||null,person_avatar:person.body.avatar,person_revision:person.body.revision}:{...p,avatar:avatar(p.avatar)};})}}));
+    return { practices:this.store.list('practice'),archived_items:this.archivedItems(),recording_people:people.filter(p=>p.body.status==='active'),recordings,recording_sources:this.store.list('recording_source'),recording_clips:this.store.list('recording_clip').filter(c=>c.body.status!=='archived'),config: this.config(), expressions: this.store.list('expression'), voices: this.store.list('voice'), samples: this.store.list('voice_sample').filter(s=>s.body.status==='active'), integration: this.integration(), evaluations: this.store.list('evaluation'), syntheses: this.store.list('synthesis'), synthesis_queue: this.store.list('job').reverse().filter(j=>j.body.kind==='synthesis'&&j.body.status==='queued').map(j=>j.body.target_id), directory: this.directory };
   }
   entity(id, type) {
     const entity = this.store.get(id);
-    if (!entity || entity.body.type !== type) throw new Error('记录不存在');
+    if (!entity || entity.body.status === 'deleted' || entity.body.type !== type) throw new Error('记录不存在');
     return entity;
   }
   update(record, changes) { return this.store.put(require('./recording-avatars.cjs').normalize(this.directory,{ ...record.body, ...changes }), { id: record.block_id, expectedRevision: record.body.revision }); }
@@ -56,12 +57,38 @@ class Service {
     return this.store.transaction(() => this.store.put({ type: 'expression', profile_id: this.profileId, original, improved, ...fields, category, language_pair: { native_language: config.native_language, target_language: config.target_language }, source: 'manual', source_occurred_at: Date.now(), content_revision: 1, acceptance: 'pending', favorite: false }));
   }
   editExpression(input) {
+    if(input.action==='delete')return this.archiveItem({...input,action:'delete'});
     return this.store.transaction(() => {
       const record = this.entity(input.id, 'expression');
       if (input.revision !== record.body.revision) throw new Error('记录已更新，请刷新后再试');
       if (input.action === 'favorite') return this.update(record, { favorite: !record.body.favorite });
       if (input.action === 'archive') return this.update(record, { status: record.body.status === 'archived' ? 'active' : 'archived', archived_at: record.body.status === 'archived' ? null : Date.now() });
+      if (input.action === 'save') {
+        const fields = {original:str(input.original,'原句',10000,true),improved:str(input.improved,'建议表达',10000,true),category:normalizeCategory(input.category)};
+        for(const name of ['translation','explanation','pattern']) fields[name]=str(input[name]||'',name,10000);
+        return this.update(record,{...fields,content_revision:record.body.content_revision+1});
+      }
       throw new Error('未知操作');
+    });
+  }
+  assertNoSynthesis(field,id) {
+    if(this.store.list('synthesis').some(s=>s.body[field]===id&&['queued','running'].includes(s.body.status)))throw Error('请先取消或等待相关语音生成任务完成');
+  }
+  editSample(input) {
+    return this.store.transaction(()=>{
+      const sample=this.entity(input.id,'voice_sample'),voice=this.entity(sample.body.voice_id,'voice');
+      if(sample.body.revision!==input.revision)throw Error('录音已更新，请刷新后再试');
+      this.assertNoSynthesis('sample_id',input.id);
+      if(input.action==='save') {
+        const saved=this.update(sample,{language:language(input.language),transcript:str(input.transcript||'','录音原文',10000),transcript_verified:true});
+        this.update(voice,{voice_revision:voice.body.voice_revision+1});return saved;
+      }
+      if(input.action!=='archive')throw Error('未知操作');
+      const saved=this.update(sample,{status:'archived',archived_at:Date.now(),user_archived:true});
+      const next=this.store.list('voice_sample').find(s=>s.body.voice_id===voice.block_id&&s.body.status==='active');
+      this.update(voice,{default_sample_id:voice.body.default_sample_id===input.id?(next?.block_id||null):voice.body.default_sample_id,voice_revision:voice.body.voice_revision+1,links:voice.body.links.filter(l=>l.target_id!==input.id)});
+      if(!next){const config=this.config();this.update(config,{default_voice_ids:config.body.default_voice_ids.filter(id=>id!==voice.block_id),links:config.body.links.filter(l=>l.target_id!==voice.block_id)});}
+      return saved;
     });
   }
   saveVoice(input) {
@@ -97,7 +124,7 @@ class Service {
   defaultSample(input) {
     return this.store.transaction(() => {
       const voice = this.entity(input.voice_id, 'voice'), sample = this.entity(input.id, 'voice_sample');
-      if (voice.body.status !== 'active' || sample.body.voice_id !== voice.block_id) throw new Error('此样本不可使用');
+      if (voice.body.status !== 'active' || sample.body.status !== 'active' || sample.body.voice_id !== voice.block_id) throw new Error('此样本不可使用');
       if (voice.body.default_sample_id === input.id) return voice;
       return this.update(voice, { default_sample_id: input.id, voice_revision: voice.body.voice_revision + 1 });
     });
@@ -166,6 +193,9 @@ require('./review.cjs').installReview(Service);
 module.exports = { Service };
 
 require('./recordings.cjs')(Service);
+require('./archive.cjs')(Service);
+require('./people-management.cjs')(Service);
+require('./learning.cjs')(Service);
 
 require('./confirmed-turns.cjs').install(Service);
 

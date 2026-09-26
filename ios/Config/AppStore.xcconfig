@@ -1,0 +1,5 @@
+// Modern distribution track. Bundle ID registration and store validation pending.
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
+SAYAGAIN_BUNDLE_IDENTIFIER = com.hotpoor.sayagain.ios
+SWIFT_OPTIMIZATION_LEVEL = -O
+ENABLE_BITCODE = NO

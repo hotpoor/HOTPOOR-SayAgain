@@ -39,7 +39,15 @@ class Store {
     return row ? { ...row, body: JSON.parse(row.body) } : null;
   }
   list(type) {
-    return this.db.prepare('SELECT block_id FROM entity_index WHERE entity_type=? ORDER BY createtime DESC,block_id').all(type).map(row => this.get(row.block_id));
+    return this.db.prepare('SELECT block_id FROM entity_index WHERE entity_type=? ORDER BY createtime DESC,block_id').all(type).map(row => this.get(row.block_id)).filter(record => record.body.status !== 'deleted');
+  }
+  all() { return this.db.prepare('SELECT block_id FROM entity_index').all().map(row=>this.get(row.block_id)); }
+  remove(id) {
+    if(!this.inTransaction)throw Error('删除必须在事务内执行');
+    this.db.prepare(`DELETE FROM shard${shardFor(id)}.entities WHERE block_id=?`).run(id);
+    this.db.prepare('DELETE FROM entity_index WHERE block_id=?').run(id);
+    this.db.prepare('DELETE FROM dedupe_index WHERE block_id=?').run(id);
+    this.db.prepare('DELETE FROM relation_index WHERE source_id=? OR target_id=?').run(id,id);
   }
   // Internal operations only; callers expose explicit business methods, never arbitrary body writes.
   put(body, { id = newId(), expectedRevision = null } = {}) {

@@ -42,7 +42,7 @@ function installReview(Service) {
     if((decision==='needs_improvement') !== (items.length>0))throw new Error('评估结果和建议数量不一致');
     const key=hash({...provenance,source_hash:hash(original),config_id:input.config_id,config_revision:input.config_revision,policy_version:1});
     const existing=this.store.db.prepare('SELECT block_id FROM dedupe_index WHERE scope=? AND dedupe_key=?').get('evaluation',key);
-    if(existing){const e=this.entity(existing.block_id,'evaluation');return{evaluation_id:e.block_id,expression_ids:e.body.expression_ids,duplicate:true};}
+    if(existing){const e=this.entity(existing.block_id,'evaluation');return{evaluation_id:e.block_id,expression_ids:e.body.expression_ids.filter(id=>this.store.get(id)?.body.type==='expression'),deleted_expression_count:e.body.expression_ids.filter(id=>!this.store.get(id)).length+(e.body.deleted_expression_count||0),duplicate:true};}
     if(input.config_id!==config.block_id||input.config_revision!==config.body.revision)throw new Error('语言设置已改变，请重新读取 context 后评估');
     const chars=Array.from(original);
     const normalized=items.map(item=>{

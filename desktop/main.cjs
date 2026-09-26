@@ -33,10 +33,11 @@ else {
     bridge=await startBridge(service,app.getPath('userData'),changed);
     speakerPipeline=new (require('./speaker-pipeline.cjs').SpeakerPipeline)(service,app.getPath('userData'),changed);
     speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
-    const methods = ['saveRecordingPerson','linkRecordingPerson','updateRecordingSpeaker','confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
+    const methods = ['expressionFromClip','managePerson','archiveItem','editRecording','editSample','saveRecordingPerson','linkRecordingPerson','updateRecordingSpeaker','confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       if (method !== 'state' && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('无效的操作参数');
+      if(['archiveItem','editRecording','updateRecordingTranscript'].includes(method)&&speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
       if(method==='state')return {...service.state(),speech:speech.status()};
       return service[method](value);
     });
@@ -85,6 +86,31 @@ else {
       if (!trusted(event)) throw new Error('无效的页面来源');
       win.setFullScreen(exit === true ? false : !win.isFullScreen());
     });
+    const textReview=new (require('./text-review.cjs').TextReview)(app.getPath('userData'),(url,options)=>net.fetch(url,options));
+    for(const [method,handler] of Object.entries({inferenceKeysStatus:()=>textReview.inference.status(),inferenceKeysUpdate:input=>textReview.inference.mutate(input),inferenceKeysReport:input=>textReview.inference.report(input?.id),textReviewStatus:()=>textReview.status(),textReviewModels:input=>textReview.models(input),clearTextReview:input=>textReview.clear(input),configureTextReview:input=>textReview.configure(input),improveText:input=>textReview.improve(input)}))ipcMain.handle(`sayagain:${method}`,(event,input)=>{if(!trusted(event))throw Error('无效来源');return handler(input);});
+    ipcMain.handle('sayagain:exportItems',async(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');require('./exports.cjs').build(service,input);
+      const result=await dialog.showOpenDialog(win,{title:'选择导出位置',properties:['openDirectory','createDirectory']});if(result.canceled)return null;
+      return require('./exports.cjs').write(service,input,result.filePaths[0]);
+    });
+    let stagedRestore=null;
+    app.on('will-quit',()=>{if(stagedRestore)require('node:fs').rmSync(stagedRestore.directory,{recursive:true,force:true});});
+    ipcMain.handle('sayagain:inspectBackup',async event=>{
+      if(!trusted(event))throw Error('无效来源');
+      const result=await dialog.showOpenDialog(win,{title:'选择完整备份目录',properties:['openDirectory']});if(result.canceled)return null;
+      if(stagedRestore)await fs.rm(stagedRestore.directory,{recursive:true,force:true});
+      stagedRestore=require('./backup-restore.cjs').stage(result.filePaths[0],service.directory);
+      return stagedRestore.summary;
+    });
+    ipcMain.handle('sayagain:restoreBackup',async event=>{
+      if(!trusted(event))throw Error('无效来源');if(!stagedRestore)throw Error('请先选择并校验备份');
+      if(textReview.busy||speech.busy||speakerPipeline.status().state==='running'||service.store.list('synthesis').some(s=>['running','queued'].includes(s.body.status)))throw Error('请先完成或取消当前任务');
+      if(service.store.list('recording').some(r=>require('./recording-import.cjs').isBusy(r.block_id)||require('./recording-models.cjs').isBusy(service,r.block_id)))throw Error('请等待录音处理完成');
+      const result=require('./backup-restore.cjs').restore(service,stagedRestore.directory);stagedRestore=null;
+      if(!speech.config())service.store.put({type:'speech_config',profile_id:service.profileId,mode:'local',cloud_enabled:false,cloud_model:require('./speech.cjs').CLOUD_MODEL});
+      for(const r of [...service.store.list('synthesis'),...service.store.list('job')])if(['queued','running'].includes(r.body.status))service.update(r,{status:'failed',error:'此任务来自备份，请手动重新提交',completed_at:Date.now()});
+      changed();return result;
+    });
     ipcMain.handle('sayagain:backup', async event => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       const result = await dialog.showOpenDialog(win, { title: '选择备份保存位置', properties: ['openDirectory', 'createDirectory'] });
@@ -127,6 +153,7 @@ else {
 }
 async function createWindow() {
   win = new BrowserWindow({ icon:iconPath, width: 1280, height: 880, minWidth: 620, minHeight: 540, title: 'HOTPOOR SayAgain', backgroundColor: '#ffffff', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default', webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  win.webContents.on('will-prevent-unload',event=>{const answer=dialog.showMessageBoxSync(win,{type:'question',buttons:['返回保存','放弃未保存内容并退出'],defaultId:0,cancelId:0,message:'当前有未保存的编辑或录音任务',detail:'请先保存编辑并停止录音。放弃后不能恢复未保存的内容。'});if(answer===1)event.preventDefault();});
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.on('will-attach-webview', event => event.preventDefault());

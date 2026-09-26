@@ -3,6 +3,26 @@ const {createHash}=require('node:crypto');
 const {newId}=require('../storage/store.cjs');
 const {parseWav}=require('./audio.cjs');
 module.exports=Service=>{
+ Service.prototype.editRecording=function(input){
+  return this.store.transaction(()=>{
+   const record=this.entity(input.id,input.kind==='clip'?'recording_clip':'recording');
+   const session=input.kind==='clip'?this.entity(record.body.recording_id,'recording'):record;
+   if(record.body.revision!==input.revision)throw Error('录音已更新，请刷新后重试');
+   if(require('./recording-import.cjs').isBusy(session.block_id)||require('./recording-models.cjs').isBusy(this,session.block_id))throw Error('此会话有任务正在处理');
+   if(input.action==='save'&&input.kind!=='clip'){
+    if(typeof input.title!=='string'||!input.title.trim()||input.title.trim().length>120)throw Error('录音标题需为1–120字');
+    return this.update(record,{title:input.title.trim()});
+   }
+   if(input.action!=='archive')throw Error('未知操作');
+   const saved=this.update(record,{status:'archived',archived_at:Date.now(),user_archived:true});
+   if(input.kind==='clip'){
+    const remaining=this.store.list('recording_clip').filter(c=>c.body.recording_id===session.block_id&&c.body.status!=='archived');
+    this.update(session,{clip_count:remaining.length,duration_ms:remaining.reduce((n,c)=>n+c.body.duration_ms,0),speaker_analysis:null,keyword_analysis:null});
+   }
+   return saved;
+  });
+ };
+
  Service.prototype.updateRecordingSpeaker=function(input){
   const session=this.entity(input.id,'recording');
   if(session.body.revision!==input.revision)throw Error('会话已更新，请刷新后重试');

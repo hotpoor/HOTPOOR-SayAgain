@@ -1,0 +1,5 @@
+// Registered-device development build. Do not upload to App Store Connect.
+IPHONEOS_DEPLOYMENT_TARGET = 12.0
+SAYAGAIN_BUNDLE_IDENTIFIER = com.hotpoor.sayagain.ipad
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+ENABLE_BITCODE = NO
