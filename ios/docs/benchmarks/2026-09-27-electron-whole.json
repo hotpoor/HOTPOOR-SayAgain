@@ -1,0 +1,40 @@
+{
+  "measuredAt": "2026-09-26T16:58:02.262Z",
+  "route": "renderer preload → real Electron IPC transcribeRecording → Python worker → SQLite persistence",
+  "mode": "default whole clip",
+  "timing": "IPC call through completed persistence; excludes launch, import and reload; fresh Python process and recognizer per run; OS file cache not cleared",
+  "audioSha256": "aa57d537103e22d71bb0af431f3cc4f8ba5b17449e4ed01f98e463a369a5167f",
+  "audioBytes": 11592136,
+  "modelSha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+  "tokensSha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+  "cpu": "Apple M1 Max",
+  "logicalCPUs": 10,
+  "memoryBytes": 68719476736,
+  "platform": "darwin",
+  "release": "25.5.0",
+  "arch": "arm64",
+  "electron": "44.4.5",
+  "threads": 4,
+  "runs": [
+    {
+      "run": 1,
+      "elapsedSeconds": 14.33560000000149,
+      "audioSeconds": 241.418,
+      "segmentCount": 1,
+      "textCharacters": 1980,
+      "realtimeMultiple": 16.8404531376416,
+      "persistedAfterReload": true,
+      "transcriptSha256": "3ddd6e1f204d26a678b1e03c62fefcb4386c2fbee41dd117c8a61c0ce0188506"
+    }
+  ],
+  "pythonRuntime": {
+    "python": "3.12.9",
+    "sherpaOnnx": "1.13.8",
+    "sherpaEmbeddedOrt": "1.28.2",
+    "numpy": "1.26.4",
+    "soundfile": "0.14.0",
+    "soxr": "1.1.0"
+  },
+  "macOS": "26.5.2 (25F84)",
+  "power": "AC power, fully charged, pmset powermode 0; temperature not sampled"
+}

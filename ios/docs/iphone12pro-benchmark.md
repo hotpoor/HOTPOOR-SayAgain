@@ -2,6 +2,8 @@
 
 2026-09-27，实际连接用户 iPhone 12 Pro / iOS 26.6.1，使用 Xcode 26.6 / iOS 26.5 SDK 开发签名安装现代版。原录音从 iPad mini 3 的 SayAgain Documents 读取，经旧 Mac 与本机传至 iPhone；没有发送到云端模型。
 
+桌面端同音频实测见 [Electron / iPhone / 老 iPad 对比](electron-asr-comparison.md)：M1 Max 上相同 29 段三轮中位数 4.4445 秒，默认整条转写 14.3356 秒。
+
 ## 输入与算法一致
 
 - WAV：241.4175 秒，24 kHz，单声道，11,592,136 字节。iPad 导出、本机文件、iPhone 回读文件的 SHA-256 完全一致：`aa57d537103e22d71bb0af431f3cc4f8ba5b17449e4ed01f98e463a369a5167f`。

@@ -1,0 +1,178 @@
+{
+  "measuredAt": "2026-09-26T16:57:36.862Z",
+  "route": "renderer preload → real Electron IPC transcribeRecording → Python worker → SQLite persistence",
+  "mode": "same iOS segment bounds",
+  "timing": "IPC call through completed persistence; excludes launch, import and reload; fresh Python process and recognizer per run; OS file cache not cleared",
+  "audioSha256": "aa57d537103e22d71bb0af431f3cc4f8ba5b17449e4ed01f98e463a369a5167f",
+  "audioBytes": 11592136,
+  "modelSha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+  "tokensSha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+  "cpu": "Apple M1 Max",
+  "logicalCPUs": 10,
+  "memoryBytes": 68719476736,
+  "platform": "darwin",
+  "release": "25.5.0",
+  "arch": "arm64",
+  "electron": "44.4.5",
+  "threads": 4,
+  "runs": [
+    {
+      "run": 1,
+      "elapsedSeconds": 4.789,
+      "audioSeconds": 241.418,
+      "segmentCount": 29,
+      "textCharacters": 2171,
+      "realtimeMultiple": 50.41094174149092,
+      "persistedAfterReload": true,
+      "transcriptSha256": "71e54a4231ca91519d3bffe8ebf4d488cf67acee4d9ea1d4dabd3c7c237de3a8"
+    },
+    {
+      "run": 2,
+      "elapsedSeconds": 4.4130999999940395,
+      "audioSeconds": 241.418,
+      "segmentCount": 29,
+      "textCharacters": 2171,
+      "realtimeMultiple": 54.70485599699215,
+      "persistedAfterReload": true,
+      "transcriptSha256": "71e54a4231ca91519d3bffe8ebf4d488cf67acee4d9ea1d4dabd3c7c237de3a8"
+    },
+    {
+      "run": 3,
+      "elapsedSeconds": 4.4445,
+      "audioSeconds": 241.418,
+      "segmentCount": 29,
+      "textCharacters": 2171,
+      "realtimeMultiple": 54.31837102036225,
+      "persistedAfterReload": true,
+      "transcriptSha256": "71e54a4231ca91519d3bffe8ebf4d488cf67acee4d9ea1d4dabd3c7c237de3a8"
+    }
+  ],
+  "pythonRuntime": {
+    "python": "3.12.9",
+    "sherpaOnnx": "1.13.8",
+    "sherpaEmbeddedOrt": "1.28.2",
+    "numpy": "1.26.4",
+    "soundfile": "0.14.0",
+    "soxr": "1.1.0"
+  },
+  "macOS": "26.5.2 (25F84)",
+  "power": "AC power, fully charged, pmset powermode 0; temperature not sampled",
+  "segments": [
+    {
+      "start": 0,
+      "end": 8.98
+    },
+    {
+      "start": 8.98,
+      "end": 16.16
+    },
+    {
+      "start": 16.16,
+      "end": 25.62
+    },
+    {
+      "start": 25.62,
+      "end": 33.76
+    },
+    {
+      "start": 33.76,
+      "end": 41.18
+    },
+    {
+      "start": 41.18,
+      "end": 49.92
+    },
+    {
+      "start": 49.92,
+      "end": 57.7
+    },
+    {
+      "start": 57.7,
+      "end": 65
+    },
+    {
+      "start": 65,
+      "end": 73.14
+    },
+    {
+      "start": 73.14,
+      "end": 81.64
+    },
+    {
+      "start": 81.64,
+      "end": 89.9
+    },
+    {
+      "start": 89.9,
+      "end": 98.88
+    },
+    {
+      "start": 98.88,
+      "end": 107.86
+    },
+    {
+      "start": 107.86,
+      "end": 117.68
+    },
+    {
+      "start": 117.68,
+      "end": 125.58
+    },
+    {
+      "start": 125.58,
+      "end": 134.56
+    },
+    {
+      "start": 134.56,
+      "end": 143.66
+    },
+    {
+      "start": 143.66,
+      "end": 152.04
+    },
+    {
+      "start": 152.04,
+      "end": 161.14
+    },
+    {
+      "start": 161.14,
+      "end": 168.2
+    },
+    {
+      "start": 168.2,
+      "end": 175.86
+    },
+    {
+      "start": 175.86,
+      "end": 184.6
+    },
+    {
+      "start": 184.6,
+      "end": 192.74
+    },
+    {
+      "start": 192.74,
+      "end": 201.36
+    },
+    {
+      "start": 201.36,
+      "end": 210.1
+    },
+    {
+      "start": 210.1,
+      "end": 219.2
+    },
+    {
+      "start": 219.2,
+      "end": 228.66
+    },
+    {
+      "start": 228.66,
+      "end": 237.64
+    },
+    {
+      "start": 237.64,
+      "end": 241.4175
+    }
+  ]
+}
