@@ -1,0 +1,3 @@
+// Diagnostic benchmark only; modern iOS target with Swift optimization disabled.
+#include "AppStore.xcconfig"
+SWIFT_OPTIMIZATION_LEVEL = -Onone

@@ -1,8 +1,12 @@
 import XCTest
 final class SmokeTests: XCTestCase {
+    private func openRecordings(_ app:XCUIApplication) {
+        if app.buttons["workspace-1"].isHittable {app.buttons["workspace-1"].tap()}
+        else {app.tabBars.buttons["我的音频"].tap()}
+    }
     func testLocalASRFullRecording() {
         continueAfterFailure = false
-        let app = XCUIApplication();app.launch();app.buttons["workspace-1"].tap()
+        let app = XCUIApplication();app.launch();openRecordings(app)
         XCTAssertTrue(app.tables.cells.firstMatch.waitForExistence(timeout:5));app.tables.cells.firstMatch.tap()
         let original = app.textViews["text"].value as? String
         for _ in 0..<6 {if app.buttons["本机离线转写 · 整条录音"].isHittable {break};app.swipeUp()}
@@ -10,18 +14,18 @@ final class SmokeTests: XCTestCase {
         let result = app.staticTexts["local-asr-result"]
         let ready = NSPredicate(format:"label BEGINSWITH %@ OR label BEGINSWITH %@","本机整段转写完成","本机转写停止或失败")
         expectation(for:ready,evaluatedWith:result,handler:nil);waitForExpectations(timeout:1800,handler:nil)
-        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "SayAgain-iPad-local-asr-full";shot.lifetime = .keepAlways;add(shot)
+        let shot = XCTAttachment(screenshot:app.screenshot());shot.name = "SayAgain-device-local-asr-full";shot.lifetime = .keepAlways;add(shot)
         let report = XCTAttachment(string:result.label);report.name = "Local-ASR-measurements";report.lifetime = .keepAlways;add(report)
         XCTAssertTrue(result.label.hasPrefix("本机整段转写完成"),result.label)
         XCTAssertEqual(app.textViews["text"].value as? String,original)
         let saved = result.label
-        app.terminate();app.launch();app.buttons["workspace-1"].tap();app.tables.cells.firstMatch.tap()
+        app.terminate();app.launch();openRecordings(app);app.tables.cells.firstMatch.tap()
         XCTAssertEqual(app.staticTexts["local-asr-result"].label,saved)
         XCTAssertEqual(app.textViews["text"].value as? String,original)
     }
     func testLocalASRCancelKeepsDraft() {
         continueAfterFailure = false
-        let app = XCUIApplication();app.launch();app.buttons["workspace-1"].tap()
+        let app = XCUIApplication();app.launch();openRecordings(app)
         XCTAssertTrue(app.tables.cells.firstMatch.waitForExistence(timeout:5));app.tables.cells.firstMatch.tap()
         let original = app.textViews["text"].value as? String
         let saved = app.staticTexts["local-asr-result"].label
@@ -34,7 +38,7 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(result.label.contains("尚未生成新段落"),result.label)
         XCTAssertTrue(result.label.hasSuffix(saved))
         XCTAssertEqual(app.textViews["text"].value as? String,original)
-        app.terminate();app.launch();app.buttons["workspace-1"].tap();app.tables.cells.firstMatch.tap()
+        app.terminate();app.launch();openRecordings(app);app.tables.cells.firstMatch.tap()
         XCTAssertEqual(app.staticTexts["local-asr-result"].label,saved)
     }
     func testReviewWaveformLayout() {

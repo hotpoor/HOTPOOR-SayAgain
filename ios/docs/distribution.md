@@ -13,14 +13,14 @@
 - `docs/milestones.md`：阶段成果索引；`docs/validation.md`：逐次验证证据。
 - 根目录 `DEVELOPMENT_LOG.md`：整个 SayAgain 产品的开发记录，自动生成开发传记与图表。
 
-共享 Swift 源码与资料结构，不重复维护两份 UI。只规划一个现代版 App Store 产品；Legacy 是旧设备开发路线，不再另建一个旧版上架条目。两种配置使用不同 Bundle ID，防止现代试验包覆盖旧 iPad 的开发包；它们不会自动共享沙盒数据。现代 ID 尚未注册/验证发行签名。账号密钥不放进这些配置文件。
+共享 Swift 源码与资料结构，不重复维护两份 UI。只规划一个现代版 App Store 产品；Legacy 是旧设备开发路线，不再另建一个旧版上架条目。两种配置使用不同 Bundle ID，防止现代试验包覆盖旧 iPad 的开发包；它们不会自动共享沙盒数据。现代 ID 已用于 iPhone 12 Pro 开发签名安装，发行签名仍未验证。账号密钥不放进这些配置文件。
 
 ## 两条构建路线
 
 | 路线 | 最低系统 | 工具链与用途 | 当前状态 |
 |---|---|---|---|
 | Legacy | iOS 12.0 | 旧 Mac Xcode 13.2.1 / SDK 15.2，已注册设备开发安装 | iPad mini 3 / iOS 12.5.8 真机验证；不能把这个构建当作当前 App Store 包 |
-| App Store | iOS / iPadOS 15.0 | 当前合规的现代 Xcode / SDK；本次使用 Xcode 26.6 / SDK 26.5 | 无签名 Release 编译通过；尚未 Archive 验证、上传、审核或现代设备验收 |
+| App Store | iOS / iPadOS 15.0 | 当前合规的现代 Xcode / SDK；本次使用 Xcode 26.6 / SDK 26.5 | Release 编译、开发签名安装与 iPhone 12 Pro 本机 ASR 验证通过；尚未 Archive 验证、上传、审核或完整现代设备验收 |
 
 现代编译验证（仓库根目录）：
 

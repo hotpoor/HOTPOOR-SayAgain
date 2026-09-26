@@ -243,7 +243,7 @@ final class EditorVC: FormVC {
             if entry.kind == "recording" {
                 button("本机离线转写 · 整条录音",#selector(testLocalASR))
                 button("停止本机转写",#selector(stopLocalASR));button("采用本机转写草稿",#selector(applyLocalASR))
-                localASRState.numberOfLines = 0;localASRState.font = .systemFont(ofSize:14);localASRState.accessibilityIdentifier = "local-asr-result";localASRState.text = UserDefaults.standard.bool(forKey:"localASRProbeInterrupted") ? "上次本机试运行未完成，可能被系统终止。原录音与文字均已保留。" : "实验功能 · SenseVoice INT8 · 在此 iPad 上运行，不上传录音。结果单独显示，原文字保持不变。";stack.addArrangedSubview(localASRState)
+                localASRState.numberOfLines = 0;localASRState.font = .systemFont(ofSize:14);localASRState.accessibilityIdentifier = "local-asr-result";localASRState.text = UserDefaults.standard.bool(forKey:"localASRProbeInterrupted") ? "上次本机试运行未完成，可能被系统终止。原录音与文字均已保留。" : "实验功能 · SenseVoice INT8 · 在本机运行，不上传录音。结果单独显示，原文字保持不变。";stack.addArrangedSubview(localASRState)
                 if let name = entry.audio,let url = try? store.audioURL(name),let draft = LocalASR.saved(for:url) {localASRReport = draft;localASRState.text = draft.display}
                 button("转写与候选说话人 · API",#selector(transcribe));button("把原文加入表达库",#selector(toExpression))
             }
@@ -317,7 +317,7 @@ final class EditorVC: FormVC {
     @objc func testLocalASR(){
         guard !busy,!LocalASR.running else {inform("已有任务正在运行");return}
         do {guard let audio = entry.audio else {throw failure("没有可读取的录音")};let url = try store.audioURL(audio)
-            busy = true;localASRState.text = "准备在 iPad 上离线识别…"
+            busy = true;localASRState.text = "准备在本机离线识别…"
             LocalASR.run(url:url,progress:{[weak self] text in self?.localASRState.text = text}){[weak self] result in
                 guard let self = self else{return};self.busy = false
                 switch result {

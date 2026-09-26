@@ -4,7 +4,7 @@
 
 | 目录 | 给谁用 | 当前状态 |
 |---|---|---|
-| **[app-store/](app-store/README.md)** | 面向 Apple App Store 的现代发行版，iOS / iPadOS 15+ | 编译通过，尚未提交上架 |
+| **[app-store/](app-store/README.md)** | 面向 Apple App Store 的现代发行版，iOS / iPadOS 15+ | iPhone 12 Pro 本机转写真机通过，尚未提交上架 |
 | **[legacy/](legacy/README.md)** | 老机器自用与开发安装，iOS 12，已验证 iPad mini 3 | 真机可用，不用于 App Store 提交 |
 
 ```text
@@ -19,6 +19,8 @@ ios/
 ```
 
 原生 UIKit 客户端。两条路线共享源码，但构建入口、配置和用途说明分别存放。客户端不嵌入 Electron、Node 或 Python；本机整条录音转写使用原生 SenseVoice，候选说话人处理仍可调用电脑 API。
+
+同音频性能：[iPhone 12 Pro 与 iPad mini 3 对比](docs/iphone12pro-benchmark.md)。
 
 开发记录：[阶段成果](docs/milestones.md) · [验证证据](docs/validation.md) · [旧设备与 App Store 发行路线](docs/distribution.md)。旧 iPad 测试与现代发行配置共用源码，分别从 [`app-store/`](app-store/README.md) 和 [`legacy/`](legacy/README.md) 进入。
 

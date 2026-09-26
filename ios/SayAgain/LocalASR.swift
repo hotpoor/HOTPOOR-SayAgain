@@ -20,8 +20,12 @@ struct LocalASRReport:Codable {
     var totalSeconds:Double = 0
     var completed:Bool = false
     var source:String = ""
+    var lowPowerModeAtStart:Bool?
+    var lowPowerModeAtEnd:Bool?
+    var thermalStateAtStart:String?
+    var thermalStateAtEnd:String?
     var display:String {
-        String(format:"%@\n%@\n\n已处理 %.2f / %.2f 秒 · %d 段\n模型加载 %.2f 秒 · 识别 %.2f 秒\n总耗时 %.2f 秒 · 采样内存峰值 %.1f MB\n草稿已单独保存在本机，未替换原文字。",completed ? "本机整段转写完成" : "本机转写草稿（未完成）",text.isEmpty ? "未识别到文字" : text,audioSeconds,totalSeconds,segments.count,loadSeconds,inferenceSeconds,elapsedSeconds,peakFootprintMB)
+        String(format:"%@\n%@\n\n已处理 %.2f / %.2f 秒 · %d 段\n模型加载 %.2f 秒 · 识别 %.2f 秒\n总耗时 %.2f 秒 · 采样内存峰值 %.1f MiB\n草稿已单独保存在本机，未替换原文字。",completed ? "本机整段转写完成" : "本机转写草稿（未完成）",text.isEmpty ? "未识别到文字" : text,audioSeconds,totalSeconds,segments.count,loadSeconds,inferenceSeconds,elapsedSeconds,peakFootprintMB)
     }
 }
 enum LocalASR {
@@ -46,7 +50,7 @@ enum LocalASR {
         let backgroundObserver = NotificationCenter.default.addObserver(forName:UIApplication.didEnterBackgroundNotification,object:nil,queue:.main){_ in cancel()}
         UserDefaults.standard.set(true,forKey:"localASRProbeInterrupted")
         queue.async {
-            let started = Date();let lock = NSLock();var peak:UInt64 = 0
+            let started = Date();let powerAtStart = ProcessInfo.processInfo.isLowPowerModeEnabled;let thermalAtStart = thermalLabel();let lock = NSLock();var peak:UInt64 = 0
             let meter = DispatchSource.makeTimerSource(queue:DispatchQueue.global(qos:.utility))
             meter.schedule(deadline:.now(),repeating:.milliseconds(100))
             meter.setEventHandler {lock.lock();peak = max(peak,SAASREngine.memoryFootprint());lock.unlock()};meter.resume()
@@ -55,14 +59,14 @@ enum LocalASR {
                 let file = try AVAudioFile(forReading:url,commonFormat:.pcmFormatFloat32,interleaved:false)
                 let rate = file.processingFormat.sampleRate
                 guard rate.isFinite,rate>0,file.length>0 else {throw failure("录音为空或格式不可读取")}
-                DispatchQueue.main.async {progress("在 iPad 上加载 SenseVoice…可在当前步骤结束后停止")}
+                DispatchQueue.main.async {progress("在本机加载 SenseVoice…可在当前步骤结束后停止")}
                 let loading = Date()
                 let engine = try SAASREngine(modelPath:folder.appendingPathComponent("model.int8.onnx").path,tokensPath:folder.appendingPathComponent("tokens.txt").path)
                 let load = Date().timeIntervalSince(loading)
                 var segments:[LocalASRSegment] = [];var inference:Double = 0
                 func report()->LocalASRReport {
                     lock.lock();let memory = max(peak,SAASREngine.memoryFootprint());lock.unlock()
-                    return LocalASRReport(text:segments.map{$0.text}.filter{!$0.isEmpty}.joined(separator:"\n"),audioSeconds:Double(file.framePosition)/rate,loadSeconds:load,inferenceSeconds:inference,elapsedSeconds:Date().timeIntervalSince(started),peakFootprintMB:Double(memory)/1048576,physicalMemoryMB:Double(ProcessInfo.processInfo.physicalMemory)/1048576,model:"SenseVoice INT8 · sherpa-onnx 1.10.30 · CPU 1 thread",segments:segments,totalSeconds:Double(file.length)/rate,completed:file.framePosition>=file.length,source:url.lastPathComponent)
+                    return LocalASRReport(text:segments.map{$0.text}.filter{!$0.isEmpty}.joined(separator:"\n"),audioSeconds:Double(file.framePosition)/rate,loadSeconds:load,inferenceSeconds:inference,elapsedSeconds:Date().timeIntervalSince(started),peakFootprintMB:Double(memory)/1048576,physicalMemoryMB:Double(ProcessInfo.processInfo.physicalMemory)/1048576,model:"SenseVoice INT8 · sherpa-onnx 1.10.30 · CPU 1 thread",segments:segments,totalSeconds:Double(file.length)/rate,completed:file.framePosition>=file.length,source:url.lastPathComponent,lowPowerModeAtStart:powerAtStart,lowPowerModeAtEnd:ProcessInfo.processInfo.isLowPowerModeEnabled,thermalStateAtStart:thermalAtStart,thermalStateAtEnd:thermalLabel())
                 }
                 while file.framePosition<file.length && !shouldStop {
                     try autoreleasepool {
@@ -80,6 +84,15 @@ enum LocalASR {
             }catch {result = .failure(error)}
             meter.cancel()
             DispatchQueue.main.async {NotificationCenter.default.removeObserver(backgroundObserver);UIApplication.shared.isIdleTimerDisabled = previousIdleSetting;running = false;UserDefaults.standard.set(false,forKey:"localASRProbeInterrupted");done(result)}
+        }
+    }
+    private static func thermalLabel()->String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal:return "nominal"
+        case .fair:return "fair"
+        case .serious:return "serious"
+        case .critical:return "critical"
+        @unknown default:return "unknown"
         }
     }
     // Bounded 10-second buffers. Prefer a quiet 120 ms window after 7 seconds;
