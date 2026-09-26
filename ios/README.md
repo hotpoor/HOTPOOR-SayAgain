@@ -1,8 +1,26 @@
 # SayAgain for iOS / iPadOS
 
-原生 UIKit 移植，面向 iPad mini 3 / iOS 12.5.8。与 Electron 桌面版共用产品流程和电脑端模型 worker；客户端不嵌入 Electron、Node 或 Python；本机整条录音转写已接原生 SenseVoice，候选说话人处理仍保留电脑 API。不依赖 SwiftUI、WebGPU 或现代 WebView 麦克风能力。
+## 先选择版本
 
-开发记录：[阶段成果](docs/milestones.md) · [验证证据](docs/validation.md) · [旧设备与 App Store 发行路线](docs/distribution.md)。旧 iPad 测试与现代发行配置共用源码，分别放在 `Config/`。
+| 目录 | 给谁用 | 当前状态 |
+|---|---|---|
+| **[app-store/](app-store/README.md)** | 面向 Apple App Store 的现代发行版，iOS / iPadOS 15+ | 编译通过，尚未提交上架 |
+| **[legacy/](legacy/README.md)** | 老机器自用与开发安装，iOS 12，已验证 iPad mini 3 | 真机可用，不用于 App Store 提交 |
+
+```text
+ios/
+├── app-store/          # App Store 发行入口、配置与构建脚本
+├── legacy/             # 老设备自用入口、配置与远端安装测试脚本
+├── SayAgain/           # 两条路线共享的 Swift / UIKit 源码
+├── SayAgain.xcodeproj/ # 共享 Xcode 工程
+├── SayAgainUITests/    # 测试
+├── native/             # 原生模型依赖与构建说明
+└── docs/               # 阶段成果与验证证据
+```
+
+原生 UIKit 客户端。两条路线共享源码，但构建入口、配置和用途说明分别存放。客户端不嵌入 Electron、Node 或 Python；本机整条录音转写使用原生 SenseVoice，候选说话人处理仍可调用电脑 API。
+
+开发记录：[阶段成果](docs/milestones.md) · [验证证据](docs/validation.md) · [旧设备与 App Store 发行路线](docs/distribution.md)。旧 iPad 测试与现代发行配置共用源码，分别从 [`app-store/`](app-store/README.md) 和 [`legacy/`](legacy/README.md) 进入。
 
 ## 目前移植范围
 
@@ -24,6 +42,8 @@
 
 ## 构建
 
+现代发行路线使用 `./ios/app-store/build.sh`，完整说明见 [App Store 入口](app-store/README.md)。以下为 [Legacy 老设备路线](legacy/README.md)。
+
 使用 Xcode 13.2.1，在 macOS 11.7.11 编译；部署目标 iOS 12.0，arm64。打开 `SayAgain.xcodeproj`，选择自己的 Development Team 和连接的 iPad，运行 SayAgain scheme。
 
 项目生成器：`python3 ios/scripts/make-project.py`。生成文件已包含在源码中，无需 XcodeGen 或 CocoaPods；本机 ASR 需按 [native/README.md](native/README.md) 准备原生库与模型。当前工程 Team 是本次用户设备的团队；其他开发者应改为自己的团队。
@@ -33,7 +53,7 @@
 远程构建（在仓库根目录运行）：
 
 ```sh
-python3 ios/scripts/build-remote.py \
+python3 ios/legacy/build-remote.py \
   --ssh-helper "$HOME/.ssh/lan-101-connect" \
   --keychain-service ssh:192.168.100.101:22 --account xialiwei \
   --device YOUR_IPAD_UDID --test

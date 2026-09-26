@@ -22,7 +22,7 @@ print('Verified unchanged native resource files:',len(skip),flush=True)
 def sync_filter(info):return None if info.name in skip else info
 buffer=io.BytesIO()
 with tarfile.open(fileobj=buffer,mode='w:gz') as archive:
- for name in ['SayAgain','SayAgainUITests','SayAgain.xcodeproj','scripts','Config']:archive.add(root/name,arcname=name,filter=sync_filter)
+ for name in ['SayAgain','SayAgainUITests','SayAgain.xcodeproj','scripts','legacy','app-store']:archive.add(root/name,arcname=name,filter=sync_filter)
 subprocess.run([args.ssh_helper,'mkdir -p ~/Developer/SayAgain-iPad; tar -xzf - -C ~/Developer/SayAgain-iPad'],input=buffer.getvalue(),check=True)
 password=subprocess.run(['security','find-generic-password','-s',args.keychain_service,'-a',args.account,'-w'],capture_output=True,check=True).stdout.rstrip(b'\n')
 remote='''import subprocess,sys,pathlib,time
@@ -36,7 +36,7 @@ with (root/"latest-build.log").open("w") as log:
 print("\\n".join((root/"latest-build.log").read_text().splitlines()[-35:]))
 sys.exit(r.returncode)
 '''
-cmd=['xcodebuild','-project','SayAgain.xcodeproj','-scheme','SayAgain','-configuration','Debug','-xcconfig','Config/Legacy-iOS12.xcconfig','-destination',('platform=iOS,id='+args.device) if args.device else 'generic/platform=iOS','-derivedDataPath','build']
+cmd=['xcodebuild','-project','SayAgain.xcodeproj','-scheme','SayAgain','-configuration','Debug','-xcconfig','legacy/Legacy-iOS12.xcconfig','-destination',('platform=iOS,id='+args.device) if args.device else 'generic/platform=iOS','-derivedDataPath','build']
 if args.test:cmd+=['-resultBundlePath','build/test-'+__import__('time').strftime('%Y%m%d-%H%M%S')+'.xcresult','test']
 else:cmd+=['build']
 if args.only_testing and not args.test:p.error('--only-testing requires --test')

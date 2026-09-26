@@ -7,8 +7,8 @@
 保留 `HOTPOOR-SayAgain/ios/`，无需再复制一个独立仓库：
 
 - `SayAgain/`：UIKit 客户端和原生 ASR 桥接。
-- `Config/Legacy-iOS12.xcconfig`：iPad mini 3 自用真机开发配置。
-- `Config/AppStore.xcconfig`：现代发行路线的编译配置。
+- `legacy/Legacy-iOS12.xcconfig`：iPad mini 3 自用真机开发配置。
+- `app-store/AppStore.xcconfig`：现代发行路线的编译配置。
 - `native/`：模型指纹、依赖版本与可复现构建说明。
 - `docs/milestones.md`：阶段成果索引；`docs/validation.md`：逐次验证证据。
 - 根目录 `DEVELOPMENT_LOG.md`：整个 SayAgain 产品的开发记录，自动生成开发传记与图表。
@@ -26,12 +26,12 @@
 
 ```sh
 xcodebuild -project ios/SayAgain.xcodeproj -scheme SayAgain \
-  -configuration Release -xcconfig ios/Config/AppStore.xcconfig \
+  -configuration Release -xcconfig ios/app-store/AppStore.xcconfig \
   -destination 'generic/platform=iOS' -derivedDataPath /tmp/sayagain-modern-build \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-旧 Mac 同步脚本 `ios/scripts/build-remote.py` 显式使用 Legacy 配置；直接在 Xcode 打开项目的默认配置也仍保留 iOS 12，避免破坏现有设备工作流。
+旧 Mac 同步脚本 `ios/legacy/build-remote.py` 显式使用 Legacy 配置；直接在 Xcode 打开项目的默认配置也仍保留 iOS 12，避免破坏现有设备工作流。
 
 ## 苹果政策：SDK 与最低运行系统是两件事
 
