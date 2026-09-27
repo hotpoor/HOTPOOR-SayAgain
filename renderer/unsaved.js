@@ -17,7 +17,7 @@ window.unsaved=(()=>{
  },true);
  document.addEventListener('click',e=>{
   if(replay||e.target.closest('.item-editor'))return;
-  const b=e.target.closest('[data-page],[data-action="close-dialog"],#recording-back,[data-recording-open],[data-action="add-expression"],[data-action="edit-expression"],[data-action="edit-voice"],[data-action="add-sample"]');
+  const b=e.target.closest('[data-page],[data-action="integration"],[data-action="speech-defaults"],[data-action="restore-backup"],[data-action="close-dialog"],#recording-back,[data-recording-open],[data-action="add-expression"],[data-action="edit-expression"],[data-action="edit-voice"],[data-action="add-sample"]');
   if(!b||(!has()&&!window.recordingPage?.busy))return;
   e.preventDefault();e.stopImmediatePropagation();permit().then(ok=>{if(ok){replay=true;try{b.click();}finally{replay=false;}}});
  },true);
