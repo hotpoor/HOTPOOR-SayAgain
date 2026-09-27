@@ -36,3 +36,10 @@
 | [onnxruntime.png](onnxruntime.png) | [来源](https://raw.githubusercontent.com/microsoft/onnxruntime/main/docs/images/ONNX_Runtime_logo_dark.png) |
 | [ffmpeg.svg](ffmpeg.svg) | [来源](https://raw.githubusercontent.com/simple-icons/simple-icons/15.16.0/icons/ffmpeg.svg) |
 | [simple-icons-LICENSE.txt](simple-icons-LICENSE.txt) | [来源](https://raw.githubusercontent.com/simple-icons/simple-icons/15.16.0/LICENSE.md) |
+
+## NVIDIA 分人模式 Logo
+
+`renderer/assets/nvidia.svg` 原样取自 NVIDIA 官方仓库：
+https://raw.githubusercontent.com/NVIDIA/bionemo-framework/main/docs/docs/assets/images/logo-white.svg
+
+仅用于标识 NVIDIA Nemotron 3 模型来源，不表示 SayAgain 获得 NVIDIA 背书。2026-09-27 下载，保持原始比例及颜色。

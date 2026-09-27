@@ -46,6 +46,7 @@ else {
       if(!trusted(event))throw Error('无效来源');
       if(input?.action==='status')return speakerPipeline.status();
       if(input?.action==='cancel')return speakerPipeline.cancel();
+      if(input?.action==='compare')return speakerPipeline.start({id:input.id,source_id:input.source_id,options:input.options});
       if(input?.action==='session')return speakerPipeline.start({id:input.id,clip_ids:input.clip_ids,options:input.options});
       if(input?.action==='import'){
         if(speakerPipeline.status().state==='running')throw Error('已有任务正在运行');
