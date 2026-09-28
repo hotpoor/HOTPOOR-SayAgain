@@ -1403,3 +1403,10 @@ dialog { overflow:hidden; }
 .voice-lab-section-title .count-label { width:auto; margin-left:auto; }
 .voice-lab-emotion-total { margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6; }
 .voice-lab-emotion-total.form-error { color:#a53e35; }
+.pipeline-modes{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.pipeline-modes .button,.pipeline-compare{display:inline-flex;align-items:center;gap:8px}
+.pipeline-modes [aria-pressed="true"]{border-color:#76b900;box-shadow:inset 0 0 0 1px #76b900}
+.pipeline-modes img,.pipeline-compare img,.pipeline-badge img{width:54px;height:30px;object-fit:contain;background:#202020;padding:4px;border-radius:4px;flex-shrink:0}
+.pipeline-badge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:4px}
+.pipeline-badge img{width:44px;height:24px}
+.pipeline-compare{font-size:11px;white-space:nowrap}

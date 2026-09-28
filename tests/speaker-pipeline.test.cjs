@@ -4,6 +4,20 @@ const {Service}=require('../desktop/service.cjs');
 const {validateOptions,validateManifest,persist,SpeakerPipeline}=require('../desktop/speaker-pipeline.cjs');
 function wav(){const b=Buffer.alloc(32044);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(32000,40);return b;}
 function fixture(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-pipeline-test-'));const s=new Service(path.join(root,'data'));t.after(()=>{s.close();fs.rmSync(root,{recursive:true,force:true});});fs.writeFileSync(path.join(root,'00001.wav'),wav());const row={file:'00001.wav',source_index:0,start_ms:0,end_ms:1000,speaker:'A',similarity:.7,review:false,text:'Hello there.'};return{root,s,row,manifest:{version:'speaker-clips-v1',clips:[row],options:{language:'en'},clustering:{speakers:1}},sources:[{name:'input.wav',offset_ms:30000,duration_ms:1000}]};}
+test('NVIDIA is explicit, rejects manual count and preserves overlapping labels on persistence',t=>{
+ assert.equal(validateOptions().engine,'campplus');
+ assert.equal(validateOptions({engine:'nemotron'}).engine,'nemotron');
+ assert.throws(()=>validateOptions({engine:'unknown'}));
+ assert.throws(()=>validateOptions({engine:'nemotron',speaker_count:2}));
+ const {root,s,row,manifest,sources}=fixture(t);
+ const changed={...manifest,engine:'nemotron',elapsed_seconds:2,clips:[{...row,speaker:null,speakers:['A','B'],similarity:0,review:true}]};
+ const result=persist(s,root,changed,sources,'Comparison');
+ const clip=s.store.list('recording_clip')[0];
+ assert.deepEqual(require('../renderer/recording-view.js').keys(clip),['A','B']);
+ assert.deepEqual(clip.body.transcript_segments[0].speakers,['A','B']);
+ assert.equal(result.body.pipeline.engine,'nemotron');
+ assert.throws(()=>validateManifest({...changed,clips:[{...changed.clips[0],speakers:['A','A']}]},sources,root));
+});
 test('pipeline validates options and rejects untrusted worker paths/times before writes',t=>{
  const {root,row,manifest,sources}=fixture(t);
  for(const value of [{speaker_count:-1},{speaker_count:2.1},{language:'bogus'}])assert.throws(()=>validateOptions(value));
