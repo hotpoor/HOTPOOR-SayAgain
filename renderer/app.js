@@ -40,6 +40,7 @@ $('#global-volume').innerHTML=volumeMarkup();
 function applyVolume(audio){if(audio){audio.volume=playbackVolume;audio.muted=playbackMuted;}}
 function updateVolume(){
  applyVolume(player);applyVolume($('#audio-preview'));
+ window.voiceLabPage?.setVolume(playbackVolume,playbackMuted);
  try{localStorage.setItem('sayagain-playback-volume',JSON.stringify({volume:playbackVolume,muted:playbackMuted}));}catch{}
  document.querySelectorAll('.volume-control').forEach(control=>{const muted=playbackMuted||playbackVolume===0,button=control.querySelector('.volume-toggle');button.innerHTML=icon(muted?'mute':'volume');button.setAttribute('aria-label',muted?'取消静音':'静音');button.setAttribute('aria-pressed',String(muted));control.querySelector('[data-volume]').value=Math.round(playbackVolume*100);control.querySelector('output').textContent=muted?'静音':Math.round(playbackVolume*100)+'%';});
 }
@@ -60,22 +61,24 @@ function stopPlayer() {
 function render() {
   window.synthesisQueue.update(state);
   stopPlayer();
+  if(page!=='voice-lab')window.voiceLabPage?.leave();
   if(page!=='recordings')window.recordingPage.leave();
   const speechLabel=state.speech.config.body.mode==='cloud'?state.speech.cloud_models.find(m=>m.id===state.speech.cloud_model)?.label:'本地 Qwen3-TTS';
   $('#speech-defaults-label').textContent=speechLabel||'语音设置';
   $('#speech-defaults').title='语音设置 · '+(speechLabel||'尚未配置')+(currentSpeechDefaults()?' · 直接生成':' · 生成前确认');
   $('#entry-count').textContent = state.expressions.filter(e => e.body.status === 'active').length;
   $('#language-badge').textContent = `${state.config.body.native_language} → ${state.config.body.target_language}`;
-  document.querySelectorAll('[data-page]').forEach(el => { el.classList.toggle('active', el.dataset.page === page); if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
-  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色',recordings:'我的音频',people:'人物形象',archive:'归档列表',settings:'设置'}[page];
+  document.querySelectorAll('[data-page]').forEach(el => { const active=el.dataset.page === (page==='voice-lab'?'voices':page);el.classList.toggle('active',active); if (active) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
+  $('#breadcrumb').textContent = {review:'表达回顾',voices:'我的音色','voice-lab':'我的音色 / 音色实验',recordings:'我的音频',people:'人物形象',archive:'归档列表',settings:'设置'}[page];
   if (!state.config.body.onboarding_complete && page !== 'settings') { renderOnboarding(); return; }
   if (page === 'review') renderReview();
   if (page === 'people') window.peoplePage.render($('#main'),state,refresh);
   if (page === 'voices') renderVoices();
+  if (page === 'voice-lab') window.voiceLabPage.render($('#main'),state);
   if (page === 'recordings') window.recordingPage.render($('#main'),state);
   if (page === 'settings') renderSettings();
   if (page === 'archive') window.archivePage.render($('#main'),state,refresh);
-  window.workflows.decorate($('#main'),state,page,refresh);
+  if(page!=='voice-lab')window.workflows.decorate($('#main'),state,page,refresh);
 }
 function languageField(name, label, value) {
   return `<label class="field">${label}<input name="${name}" list="language-options" value="${escapeHtml(value)}" required maxlength="50" placeholder="例如 zh-CN、en-US"><small>可输入任意有效的语言代码</small></label>`;
@@ -128,6 +131,8 @@ function renderVoices() {
   const voices = state.voices.filter(v => (v.body.status === 'archived') === archived);
   $('#main').innerHTML = `<div class="page">${heading('SOUNDS LIKE YOU','我的音色','留下不同状态下的声音，也留下那一刻的备注。','<button class="button primary" data-action="add-voice">＋ 新建音色</button>')}<div class="toolbar"><select class="filter" id="voice-filter" aria-label="音色筛选"><option value="active">使用中的音色</option><option value="archived">已归档音色</option></select><span class="count-label">${voices.length} 个音色 · 录音仅保存在本地</span></div>${voices.length ? voices.map(voiceMarkup).join('') : `<section class="empty"><div class="empty-symbol">${icon('wave')}</div><h2>${archived ? '还没有归档音色' : '这一次，听见自己的声音。'}</h2><p>${archived ? '归档会保留参考录音与历史信息，随时可以恢复。' : '创建一个音色，录制或导入参考音频。可以保存多个样本，选出最适合自己的声音。'}</p>${!archived ? '<button class="button primary" data-action="add-voice">创建我的音色</button>' : ''}</section>`}<p class="quiet-note">录音默认保存在本地。表达页可使用这些样本合成语音；云端生成需要你主动启用并确认。</p></div>`;
   $('#voice-filter').value = archived ? 'archived' : 'active';
+  const labButton=document.createElement('button');labButton.type='button';labButton.className='button';labButton.dataset.action='voice-lab';labButton.textContent='音色实验';
+  const actions=document.createElement('div');actions.className='voice-heading-actions';const create=$('.page-heading [data-action="add-voice"]');create.replaceWith(actions);actions.append(labButton,create);
 }
 function voiceMarkup({block_id:id, body:b, createtime}) {
   const samples = state.samples.filter(s => s.body.voice_id === id);
@@ -397,6 +402,7 @@ document.addEventListener('click', async event => {
       }
       case 'clear-api-key': await api.clearApiKey();await refresh();notify('密钥已移除，云端已关闭');break;
       case 'speech-defaults': openDialog('speech-defaults');break;
+      case 'voice-lab': page='voice-lab';render();$('#main').scrollTop=0;break;
       case 'synthesize': await generateWithDefaults(id,button);break;
       case 'cancel-synthesis': await api.cancelSynthesis({id});await refresh();break;
       case 'fullscreen': await api.fullscreen(); break;
@@ -494,6 +500,6 @@ document.addEventListener('submit',async event=>{
 editor.addEventListener('close',cleanupRecording);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!editor.open)api.fullscreen(true).catch(()=>{});});
 api.onFullscreen(full=>{const button=$('#fullscreen');button.setAttribute('aria-label',full?'退出全屏':'进入全屏');button.title=button.getAttribute('aria-label');});
-api.onChange(async()=>{try{state=await api.state();window.synthesisQueue.update(state);if(!window.unsaved.has()&&!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
+api.onChange(async()=>{try{state=await api.state();window.synthesisQueue.update(state);if(page==='voice-lab'){window.voiceLabPage.update(state);return;}if(!window.unsaved.has()&&!editor.open&&(!player||player.paused)&&!document.activeElement?.closest('form'))render();}catch(error){notify(errorMessage(error));}});
 fillIcons();
 refresh().catch(error=>{$('#main').innerHTML=`<div class="page"><h1>无法打开本地数据</h1><p class="form-error">${escapeHtml(errorMessage(error))}</p></div>`;});

@@ -12,12 +12,14 @@ const BASE='https://maas.qianwenaiapi.com/api/v1';
 const LANGUAGES={zh:'Chinese',en:'English',ja:'Japanese',ko:'Korean',de:'German',fr:'French',ru:'Russian',pt:'Portuguese',es:'Spanish',it:'Italian'};
 const hash=value=>createHash('sha256').update(value).digest('hex');
 class Speech {
- constructor(service,userDirectory,{secrets,fetch:fetcher=global.fetch,onChange=()=>{},localStatus=modelStatus,localRunner,realtime=synthesizeRealtime}={}){
-  this.realtime=realtime;this.service=service;this.userDirectory=userDirectory;this.secrets=secrets;this.fetch=fetcher;this.onChange=onChange;this.localStatus=localStatus;this.localRunner=localRunner;this.busy=false;this.closed=false;this.active=null;
+ constructor(service,userDirectory,{secrets,fetch:fetcher=global.fetch,onChange=()=>{},localStatus=modelStatus,localRunner,indexStatus=require('./voice-lab.cjs').indexStatus,indexRunner,realtime=synthesizeRealtime}={}){
+  this.realtime=realtime;this.service=service;this.userDirectory=userDirectory;this.secrets=secrets;this.fetch=fetcher;this.onChange=onChange;this.localStatus=localStatus;this.localRunner=localRunner;this.indexStatus=indexStatus;this.indexRunner=indexRunner;this.busy=false;this.closed=false;this.active=null;
   if(!this.config())service.store.put({type:'speech_config',profile_id:service.profileId,mode:'local',cloud_enabled:false,cloud_model:CLOUD_MODEL});
   service.store.transaction(()=>{for(const job of service.store.list('job'))if(job.body.kind==='synthesis'&&['queued','running'].includes(job.body.status)){service.update(job,{status:'failed',error:'上次运行中断，请手动重试。云端请求可能已计费。'});const synthesis=service.store.get(job.body.target_id);if(synthesis)service.update(synthesis,{status:'failed',error:'上次运行中断，请手动重试。'});}});
  }
  config(){return this.service.store.list('speech_config')[0];}
+ voiceLabStatus(){return require('./voice-lab.cjs').status(this);}
+ requestVoiceLab(input){return require('./voice-lab.cjs').request(this,input);}
  status(){const local=this.localStatus(this.userDirectory),key=this.secrets?.status?.()||{present:!!this.secrets?.has(),usable:!!this.secrets?.has(),error:null};return{config:this.config(),has_api_key:key.usable,api_key_present:key.present,api_key_error:key.error,local:{...local,runtime:undefined},cloud_platform:'https://platform.qianwenai.com/',cloud_model:this.config().body.cloud_model||CLOUD_MODEL,cloud_models:CLOUD_MODELS};}
  configure(input){
   if(!['local','cloud'].includes(input.mode)||typeof input.cloud_enabled!=='boolean')throw new Error('语音设置无效');
@@ -80,8 +82,15 @@ class Speech {
    if(voice.body.status!=='active')throw new Error('音色已归档，任务未执行');
    s.store.transaction(()=>{s.update(record,{status:'running',started_at:Date.now()});s.update(job,{status:'running',started_at:Date.now()});});this.onChange();
    const reference=s.asset(sample.body.asset_id).filename;
+   require('./voice-lab.cjs').validateRun(this,record,sample,reference);
+   const style=record.body.purpose==='voice_lab'?(record.body.style||{}):{};
    let bytes;
-   if(record.body.provider==='local'){
+   if(record.body.provider==='local'&&record.body.engine==='indextts'){
+    const local=this.indexStatus(this.userDirectory);if(!local.installed||!local.space_ok)throw new Error(local.reason||'IndexTTS 环境不可用');
+    const request={reference_path:reference,reference_text:record.body.reference_text,text:record.body.text_snapshot,language:record.body.language,output_path:temporary,...style};
+    await (this.indexRunner||require('./index-tts-runtime.cjs').run)(local.runtime,request,controller.signal);
+    bytes=fs.readFileSync(temporary);
+   }else if(record.body.provider==='local'){
     const local=this.localStatus(this.userDirectory);if(!local.space_ok||!local.installed)throw new Error(local.reason);
     const request={model_path:local.runtime.model_path,device:local.runtime.device||'cpu',reference_path:reference,reference_text:record.body.reference_text,text:record.body.text_snapshot,language:record.body.language,output_path:temporary};
     if(this.localRunner)await this.localRunner(request,controller.signal);else await this.runLocal(local.runtime.python,request,controller.signal);
@@ -113,12 +122,12 @@ class Speech {
     }
     if(model.family==='qwen-realtime'){bytes=await this.realtime({model:model.id,voice:remoteVoice,text:record.body.text_snapshot,key,signal:controller.signal});}
     else if(model.family==='minimax'){
-     const result=await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{text:record.body.text_snapshot,voice_setting:{voice_id:remoteVoice},audio_setting:{format:'wav',sample_rate:24000,channel:1},output_format:'hex'}},key,controller.signal,{},64*1024*1024);
+     const result=await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{text:record.body.text_snapshot,voice_setting:{voice_id:remoteVoice,...(style.emotion?{emotion:style.emotion}:{})},audio_setting:{format:'wav',sample_rate:24000,channel:1},output_format:'hex'}},key,controller.signal,{},64*1024*1024);
      if(result.output?.data?.status!==2)throw new Error('MiniMax 音频尚未完整返回');
      const audio=result.output?.data?.audio;if(typeof audio!=='string'||!audio.length||audio.length%2||!/^[0-9a-f]+$/i.test(audio))throw new Error('MiniMax 未返回完整音频');bytes=Buffer.from(audio,'hex');
     }else{
     const result=['qwen-audio','cosyvoice'].includes(model.family)
-     ?await this.post('/services/audio/tts/SpeechSynthesizer',{model:model.id,input:{text:record.body.text_snapshot,voice:remoteVoice,format:'wav',sample_rate:24000}},key,controller.signal)
+     ?await this.post('/services/audio/tts/SpeechSynthesizer',{model:model.id,input:{text:record.body.text_snapshot,voice:remoteVoice,format:'wav',sample_rate:24000,...(style.instruction?{instruction:style.instruction}:{})}},key,controller.signal)
      :await this.post('/services/aigc/multimodal-generation/generation',{model:model.id,input:{text:record.body.text_snapshot,voice:remoteVoice,language_type:record.body.language}},key,controller.signal);
     const url=normalizeAudioUrl(result.output?.audio?.url);
     const response=await this.fetch(url,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)]),redirect:'error'});

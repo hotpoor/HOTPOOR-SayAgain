@@ -1,8 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" role="img" aria-label="每日开发记录全年贡献格"><title>每日开发记录全年贡献格</title><rect width="100%" height="100%" rx="8" fill="#fff"/><g font-family="system-ui, sans-serif"><text x="20" y="22" font-size="12" fill="#57606a">每日工作记录 · 2025-09-28 — 2026-09-27</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" role="img" aria-label="每日开发记录全年贡献格"><title>每日开发记录全年贡献格</title><rect width="100%" height="100%" rx="8" fill="#fff"/><g font-family="system-ui, sans-serif"><text x="20" y="22" font-size="12" fill="#57606a">每日工作记录 · 2025-09-29 — 2026-09-28</text>
 <text x="20" y="70" font-size="9" fill="#57606a">一</text>
 <text x="20" y="92" font-size="9" fill="#57606a">三</text>
 <text x="20" y="114" font-size="9" fill="#57606a">五</text>
-<rect data-date="2025-09-28" data-count="0" x="44" y="51" width="9" height="9" rx="2" fill="#ebedf0"><title>2025-09-28：0 条记录</title></rect>
 <rect data-date="2025-09-29" data-count="0" x="44" y="62" width="9" height="9" rx="2" fill="#ebedf0"><title>2025-09-29：0 条记录</title></rect>
 <rect data-date="2025-09-30" data-count="0" x="44" y="73" width="9" height="9" rx="2" fill="#ebedf0"><title>2025-09-30：0 条记录</title></rect>
 <text x="44" y="43" font-size="9" fill="#57606a">10月</text>
@@ -379,6 +378,7 @@
 <rect data-date="2026-09-25" data-count="37" x="656" y="106" width="9" height="9" rx="2" fill="#216e39"><title>2026-09-25：37 条记录</title></rect>
 <rect data-date="2026-09-26" data-count="2" x="656" y="117" width="9" height="9" rx="2" fill="#9be9a8"><title>2026-09-26：2 条记录</title></rect>
 <rect data-date="2026-09-27" data-count="6" x="668" y="51" width="9" height="9" rx="2" fill="#30a14e"><title>2026-09-27：6 条记录</title></rect>
+<rect data-date="2026-09-28" data-count="4" x="668" y="62" width="9" height="9" rx="2" fill="#40c463"><title>2026-09-28：4 条记录</title></rect>
 <text x="20" y="155" font-size="10" fill="#57606a">每格一天 · 截至最新日志日期 · 数量不代表提交数或工时</text>
 <rect x="555" y="141" width="10" height="10" rx="2" fill="#ebedf0"/>
 <text x="553" y="165" font-size="8" fill="#57606a">0</text>

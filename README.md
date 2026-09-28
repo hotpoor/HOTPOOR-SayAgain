@@ -13,7 +13,7 @@ SayAgain 从真实对话中发现值得改进的表达，保留原意、给出�
 3. **音频文件与录音**：导入或录制语音，在本地转写、试听和校对。
 4. **声纹角色库**：管理说话人资料、头像与会话中的人物关联。
 
-> Electron 源码客户端 v0.2.1。表达记录与 Skill 评估接入已实现，宿主逐轮自动触发仍待验证；云端 Qwen 合成已实测，本地 Qwen3-TTS 推理待验证；本地转写与人物资料管理已接通。尚无桌面安装包。
+> Electron 源码客户端 v0.2.1，截至 2026-09-28。表达记录与 Skill 评估接入已实现，宿主逐轮自动触发仍待验证；音色实验已提供，本机 IndexTTS 2.5 / MPS 已完成真实生成与播放。云端 Qwen 基础合成已实测，本地 Qwen3-TTS Base 和当前平台的云端情绪控制仍待实测。本地转写与人物资料管理已接通，尚无桌面安装包。
 
 ## 1. 表达优化：最优先的功能
 
@@ -47,7 +47,11 @@ SayAgain 从真实对话中发现值得改进的表达，保留原意、给出�
 
 参考音频可导入或录制、裁剪和试听；合成支持任务进度、取消、缓存与播放。音色参考录音用于声音合成，与下方转写长音频的流程分别配置。
 
-当前已实测云端 Qwen 语音合成。使用云端需主动启用并授权发送选定参考音频和文字。本地 Qwen3-TTS worker 与安装器已提供，实际本地合成仍待验证。详见 [语音接入](docs/speech.md)。
+桌面端「我的音色 → 音色实验」可输入短文本，选择参考录音与模型，按模型能力使用情绪描述、标签或八维情绪配比。每次实验独立保存，记录按时间倒序展示，支持播放、导出和取消；不创建表达记录，也不改变默认音色、参考录音或合成模型。使用方式与模型能力见[音色实验](docs/voice-lab.md)。
+
+**本地 IndexTTS 2.5 已完成实际生成与播放。** 本机 Apple Silicon / MPS 的独立环境和权重已配齐。早期公开短句成功后，较长输入曾因内存与交换空间不足被系统以 `SIGKILL` 终止；现以完整 `inference_mode()`、MPS 分配预算 `min(12 GiB, 推荐工作集 / 2)`、单 beam 和 40-token 分段控制内存。原失败样例（47 字中文、19.32 秒参考录音、生气强度 0.6）已在日常客户端重新生成：83.379 秒得到 8.188 秒音频，并播放至结尾。12 GiB 不是整个进程的内存上限，分段和单 beam 可能改变韵律；结果不代表所有长文本、音色相似度或情绪听感均已验收。配置与复现记录见 [IndexTTS 2.5 本地环境](docs/index-tts-local.md)。
+
+**其他模型的验证状态分别记录。** 云端 Qwen 基础语音合成已实测；新增 Qwen-Audio / CosyVoice 指令与 MiniMax 情绪参数在当前兼容平台尚未实测，模拟接口通过不等于实际效果通过。本地 Qwen3-TTS Base 的 worker 与安装器已提供，实际推理仍待验证。使用云端需主动启用并授权发送选定参考音频和文字，失败不会自动换模型或重复付费重试。详见 [语音接入](docs/speech.md)。
 
 <details>
 <summary>查看音色库与参考录音</summary>
@@ -138,7 +142,7 @@ SayAgain 从真实对话中发现值得改进的表达，保留原意、给出�
 
 ## 本地优先
 
-优先推荐本地方案：用户使用自己的 Codex、Claude Code 或其他兼容客户端，由 SayAgain 的 Skill 与客户端适配器协作完成表达评估，在本机安装 Qwen3-TTS 进行音色克隆和语音合成，使用 SQLite 保存记录。
+优先推荐本地方案：用户使用自己的 Codex、Claude Code 或其他兼容客户端，由 SayAgain 的 Skill 与客户端适配器协作完成表达评估，使用 SQLite 保存记录。本地 Qwen3-TTS 提供表达听练的合成接口；IndexTTS 2.5 在独立的音色实验中提供八维情绪控制，两者的环境与验证状态分别管理。
 
 ```text
 真实对话 → 表达评估 → 原句 / 建议 / 母语解释 / 句型
@@ -152,11 +156,11 @@ SayAgain 从真实对话中发现值得改进的表达，保留原意、给出�
 
 可靠的逐轮评估需要客户端事件适配，单独提供 Skill 并不能保证每轮触发。我们会逐个验证客户端接入能力，并明确自动与手动接入的区别。
 
-空间不足时明确提示无法安装本地 Qwen3-TTS，并提供千问AI平台云端入口。当前优先完成此设备的云端接入；用户填写 AK、启用云端后，确认发送选定参考录音和文本；也可在顶部语音设置中授权复用默认选择，之后手动点击生成时无需重复弹窗。无云端数据同步。详见[语音接入](docs/speech.md)。
+空间不足时明确提示无法安装本地 Qwen3-TTS，并提供千问AI平台云端入口；不会自动切换或上传。用户填写 AK、启用云端后，确认发送选定参考录音和文本；表达听练可在顶部语音设置中授权复用默认选择，音色实验的云端发送按次确认。无云端数据同步。详见[语音接入](docs/speech.md)。
 
 ## 当前进度
 
-截至 **2026-09-25**：
+截至 **2026-09-28**：
 
 | 模块 | 状态 | 已有成果 / 下一步 |
 | --- | --- | --- |
@@ -166,13 +170,15 @@ SayAgain 从真实对话中发现值得改进的表达，保留原意、给出�
 | SQLite 建表定义 | 已编写并做基础验证 | 主库索引、分库单表、样例写入与约束、事务回滚和路由检查 |
 | 本地存储服务 | 基础功能已实现 | 三库事务读写、索引更新/重建、修订检查与完整备份；备份可在隔离目录重新打开 |
 | Skill 与表达评估 | 接入已实现 | 完整 Skill 复制/导出、本机授权桥接、结构化评估与回执；宿主每轮自动触发待验证 |
-| 本地语音合成 | worker / 安装器已实现 | 空间预检、固定版本模型；当前机器空间不足，未下载或验证推理 |
+| 音色实验 | 已实现并完成 IndexTTS 实际流程 | 独立文本、样本与模型选择、按能力展示情绪控制；历史持久化、播放、导出、取消，不改变默认配置 |
+| 本地 IndexTTS 2.5 | 本机 MPS 实际生成与播放通过 | 独立环境及权重已配齐；修复较长输入被系统终止的问题，原失败样例经客户端重新生成并播放完成；音色与情绪质量仍需试听评估 |
+| 本地 Qwen3-TTS Base | worker / 安装器已实现，推理待验证 | 空间预检、固定版本模型和环境登记；不能用 IndexTTS 的实测替代 Qwen 验证 |
 | Electron 客户端界面 | 源码版可运行 | 语言引导、手动记录、搜索/收藏/归档、音色库、参考录音播放、全屏和窄窗口 |
 | 语音文件与分人短条 | 已实现，识别质量仍需复核 | 原文件保留、候选分组、自动转写、双视图、备注 / 头像、SVG 时间轴、连续发言吸附与文本导出 |
 | 客户端逐轮接入 | 待实现 | 分别验证事件触发、接入范围和处理回执 |
-| 云端 API | Qwen 接入已实现 | AK 本地保存、平台跳转、音色复用与合成；Qwen3-TTS VC 与 Qwen-Audio Plus 已实测，其余已做模拟接口测试 |
+| 云端 API | Qwen 基础合成已实测，新增情绪待实测 | AK 本地保存、平台跳转、音色复用与合成；Qwen3-TTS VC 与 Qwen-Audio Plus 已实测，新增情绪参数仅完成模拟接口测试，当前兼容平台尚未实测 |
 
-合并远端更新后已通过 74 项数据、评估和语音流程测试，并完成录音阅读界面的隔离 Electron 检查，覆盖录音、播放、归档、AK 本地保存/移除、平台跳转及退出重开后的持久化。录音测试使用模拟麦克风，不代表真实麦克风听感、Qwen 模型运行或自动客户端接入已验证。完整桌面回归在 macOS 完成；Windows 导入解码与文件标题布局的专项验证见开发日志，不代表全部功能已完成 Windows 验收。
+数据、评估和语音流程已有自动化测试；隔离 Electron 检查覆盖录音、播放、归档、AK 本地保存/移除、平台跳转及退出重开后的持久化。音色实验另检查参数约束、任务保存及进程错误分类，IndexTTS 的实际生成与播放记录见上方专页。模拟麦克风与模拟云响应不代表真实录音听感、Qwen 本地推理或云端情绪效果已验证。桌面回归在 macOS 完成；Windows 导入解码与文件标题布局的专项验证见开发日志，不代表全部功能已完成 Windows 验收。
 
 ## 从源码运行
 
@@ -192,6 +198,7 @@ npm start
 ```sh
 npm test                 # SQLite 与业务规则测试
 npm run test:desktop     # Electron 检查，使用临时目录与模拟麦克风
+npm run test:voice-lab   # 隔离音色实验界面检查，不执行真实模型或付费合成
 npm run docs:check       # 开发日志、传记和图表同步检查
 node scripts/smoke-recording-chat.cjs # 隔离会话：头像、双视图、SVG、吸附、导出等
 ```
@@ -331,10 +338,11 @@ SayAgain 当前流程：
 
 | 标识 | 技术 | 当前角色 |
 | --- | --- | --- |
-| <img src="docs/logos/qwen3-tts.png" width="110" alt="Qwen3-TTS"> | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) / Qwen 云端 TTS | 本地 `qwen-tts 0.1.1` worker 与安装器已提供，本机推理未验证；云端 Qwen3-TTS VC、Qwen-Audio 3.0 TTS Plus 已做真实合成。图为 Qwen3-TTS 项目标识。 |
-| <img src="docs/logos/pytorch.svg" width="32" height="32" alt="PyTorch"> | [PyTorch](https://pytorch.org/) | 本地 Qwen TTS 环境依赖；不是当前 ONNX 语音识别的统一运行时。 |
-| <img src="docs/logos/minimax.png" width="110" alt="MiniMax"> | [MiniMax](https://www.minimax.io/) | 音色克隆 / 语音合成适配已编写，模拟接口测试通过；不能据此宣称已真实合成验证。 |
-| — | [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) | Qwen 平台中的合成模型选项，未在本项目独立验证本地 CosyVoice 推理。 |
+| <img src="docs/logos/qwen3-tts.png" width="110" alt="Qwen3-TTS"> | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) / Qwen 云端 TTS | 本地 Base 的 `qwen-tts 0.1.1` worker 与安装器已提供，推理未验证；云端 Qwen3-TTS VC、Qwen-Audio 3.0 TTS Plus 基础合成已实测，新增情绪指令尚未在当前平台实测。图为 Qwen3-TTS 项目标识。 |
+| — | [IndexTTS 2.5](https://github.com/index-tts/index-tts) | 独立本地音色实验，八维情绪与整体强度；本机 MPS 已完成真实生成与播放，未配置额外的 QwenEmotion 文本转情绪模型。详见[本地环境](docs/index-tts-local.md)。 |
+| <img src="docs/logos/pytorch.svg" width="32" height="32" alt="PyTorch"> | [PyTorch](https://pytorch.org/) | 本地 Qwen TTS 与 IndexTTS 的独立环境依赖；不是当前 ONNX 语音识别的统一运行时。 |
+| <img src="docs/logos/minimax.png" width="110" alt="MiniMax"> | [MiniMax](https://www.minimax.io/) | 音色克隆、合成及情绪参数适配已编写，模拟接口测试通过；当前兼容平台真实合成与情绪效果待实测。 |
+| — | [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) | 云端合成选项，支持版本可传情绪指令，当前平台效果待实测；未独立验证本地 CosyVoice 推理。 |
 | — | Skill、本机 HTTP 桥接、`ws 8.21.3` | 宿主表达评估、授权本机调用和实时合成协议；Codex / ChatGPT 是使用与设计参考，不是本地 ASR 运行依赖。 |
 
 ### 开发与验证
@@ -424,6 +432,8 @@ PatchX FreeNote 也使用了这套上游模型，并在此基础上集成录音�
 ## 仓库导览
 
 - [Electron 客户端与界面方向](docs/desktop.md)
+- [音色实验与模型能力](docs/voice-lab.md)
+- [IndexTTS 2.5 本地配置与实际验证](docs/index-tts-local.md)
 - [产品、配置与页面设计](docs/product.md)
 - [数据模型、分库与一致性设计](docs/data-model.md)
 - [主库索引 SQL](storage/index.sql)
