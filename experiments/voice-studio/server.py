@@ -16,6 +16,10 @@ REPO = APP.parents[1]
 WORKSPACE = REPO.parent
 ASR_PYTHON = WORKSPACE / 'speaker-local/sayagain-input-venv/Scripts/python.exe'
 TTS_PYTHON = WORKSPACE / 'qwen-tts-local/.venv/Scripts/python.exe'
+SEAMLESS_PYTHON = WORKSPACE / 'speaker-local/nemotron-venv/Scripts/python.exe'
+SEAMLESS_MODEL = WORKSPACE / 'seamless-local/model'
+SEAMLESS_REVISION = '5f8cc790b19fc3f67a61c105133b20b34e3dcb76'
+SEAMLESS_LANGUAGES = {'eng': '英语', 'cmn': '普通话'}
 MODEL = WORKSPACE / 'qwen-tts-local/models/Qwen3-TTS-12Hz-1.7B-Base'
 SENSE = WORKSPACE / 'speaker-local/sayagain-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09'
 FFMPEG = REPO / 'node_modules/ffmpeg-static/ffmpeg.exe'
@@ -59,14 +63,23 @@ def synthesize(ident, request):
     started = time.perf_counter()
     try:
         output = MEDIA / (ident + '.wav')
-        worker = {'text': request['text'], 'language': request['language'],
-                  'reference_path': str(get_audio(request['target'])),
-                  'reference_text': request.get('reference_text', ''),
-                  'output_path': str(output), 'device': 'cuda:0', 'model_path': str(MODEL)}
+        seamless = request.get('engine') == 'seamless'
+        if seamless:
+            worker = {'source_path': str(get_audio(request['source'])), 'target_language': request['target_language'],
+                      'output_path': str(output), 'model_path': str(SEAMLESS_MODEL)}
+            python = SEAMLESS_PYTHON
+            script = APP / 'seamless_worker.py'
+        else:
+            worker = {'text': request['text'], 'language': request['language'],
+                      'reference_path': str(get_audio(request['target'])),
+                      'reference_text': request.get('reference_text', ''),
+                      'output_path': str(output), 'device': 'cuda:0', 'model_path': str(MODEL)}
+            python = TTS_PYTHON
+            script = REPO / 'workers/qwen_tts_worker.py'
         env = os.environ.copy()
         env.update(PYTHONIOENCODING='utf-8', HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1')
         with (DATA / (ident + '.log')).open('w', encoding='utf-8') as log:
-            result = subprocess.run([str(TTS_PYTHON), str(REPO / 'workers/qwen_tts_worker.py')],
+            result = subprocess.run([str(python), str(script)],
                                     input=json.dumps(worker, ensure_ascii=False), text=True,
                                     encoding='utf-8', stdout=subprocess.PIPE, stderr=log, env=env, timeout=600)
         reply = json.loads(result.stdout.strip().splitlines()[-1]) if result.stdout.strip() else {}
@@ -78,7 +91,9 @@ def synthesize(ident, request):
         if not samples.size or not np.isfinite(samples).all() or np.max(np.abs(samples)) == 0:
             raise RuntimeError('生成音频为空或无效')
         job.update(state='completed', url='/media/' + ident + '.wav', elapsed_seconds=time.perf_counter()-started,
-                   model=MODEL.name, device='cuda:0', **audio_info(output))
+                   model=request['model'], device='cuda:0', **audio_info(output))
+        if seamless:
+            job.update({key: reply[key] for key in ['translated_text', 'load_seconds', 'inference_seconds', 'peak_cuda_bytes', 'dtype']})
         (DATA / (ident + '.json')).write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding='utf-8')
     except Exception as exc:
         job.update(state='failed', error=str(exc)[:1000], elapsed_seconds=time.perf_counter()-started)
@@ -113,13 +128,21 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.respond({'error': '访问来源无效'}, 403)
         route = urlparse(self.path).path
-        if route == '/':
-            body = (APP / 'index.html').read_text(encoding='utf-8').replace('__STUDIO_TOKEN__', TOKEN).encode('utf-8')
+        if route in ('/', '/seamless', '/seamless/'):
+            filename = 'index.html' if route == '/' else 'seamless.html'
+            body = (APP / filename).read_text(encoding='utf-8').replace('__STUDIO_TOKEN__', TOKEN).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
             self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'")
+            self.end_headers()
+            return self.wfile.write(body)
+        if route == '/studio.css':
+            body = (APP / 'studio.css').read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/css; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             return self.wfile.write(body)
         if route.startswith('/media/'):
@@ -146,6 +169,17 @@ class Handler(BaseHTTPRequestHandler):
             saved = DATA / (ident + '.json')
             example = json.loads(saved.read_text(encoding='utf-8')) if saved.is_file() and (MEDIA / (ident + '.wav')).exists() else None
             return self.respond({'presets': PRESETS, 'example_result': example})
+        if route == '/api/seamless':
+            examples = []
+            for source, language in [('zh', 'eng'), ('en', 'cmn')]:
+                canonical = {'engine': 'seamless', 'source': PRESETS[source]['id'], 'target_language': language,
+                             'model': 'SeamlessM4T-v2-large', 'revision': SEAMLESS_REVISION}
+                ident = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+                saved = DATA / (ident + '.json')
+                if saved.is_file() and (MEDIA / (ident + '.wav')).exists():
+                    examples.append(json.loads(saved.read_text(encoding='utf-8')))
+            return self.respond({'presets': PRESETS, 'languages': SEAMLESS_LANGUAGES, 'examples': examples,
+                                 'available': SEAMLESS_PYTHON.exists() and (SEAMLESS_MODEL / 'model.safetensors.index.json').exists()})
         if route.startswith('/api/jobs/'):
             ident = route.rsplit('/', 1)[-1]
             if len(ident) == 64 and all(c in '0123456789abcdef' for c in ident):
@@ -200,20 +234,33 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond({'text': response['text']})
             if route == '/api/generate':
                 get_audio(request.get('source'))
-                reference = get_audio(request.get('target'))
-                if not 3 <= audio_info(reference)['seconds'] <= 60:
-                    raise ValueError('目标音色参考至少需要 3 秒，建议 10–20 秒')
-                text = request.get('text', '').strip()
-                if not 1 <= len(text) <= 300:
-                    raise ValueError('请填写并校对 1–300 字的生成文字')
-                language = request.get('language', 'Chinese')
-                if language not in LANGUAGES:
-                    raise ValueError('不支持的合成语言')
-                ref_text = request.get('reference_text', '').strip()
-                if len(ref_text) > 1000:
-                    raise ValueError('音色参考原文过长')
-                canonical = {'source': request['source'], 'target': request['target'], 'text': text,
-                             'language': language, 'reference_text': ref_text, 'model': MODEL.name}
+                if request.get('engine', 'qwen') not in ('qwen', 'seamless'):
+                    raise ValueError('不支持的模型')
+                if request.get('engine') == 'seamless':
+                    language = request.get('target_language')
+                    if language not in SEAMLESS_LANGUAGES:
+                        raise ValueError('不支持的翻译目标语言')
+                    if not 1 <= audio_info(get_audio(request['source']))['seconds'] <= 30:
+                        raise ValueError('Seamless 实验仅支持 1–30 秒录音')
+                    if not SEAMLESS_PYTHON.is_file() or not (SEAMLESS_MODEL / 'model.safetensors.index.json').is_file():
+                        raise ValueError('Seamless 本地环境或权重尚未安装')
+                    canonical = {'engine': 'seamless', 'source': request['source'], 'target_language': language,
+                                 'model': 'SeamlessM4T-v2-large', 'revision': SEAMLESS_REVISION}
+                else:
+                    reference = get_audio(request.get('target'))
+                    if not 3 <= audio_info(reference)['seconds'] <= 60:
+                        raise ValueError('目标音色参考至少需要 3 秒，建议 10–20 秒')
+                    text = request.get('text', '').strip()
+                    if not 1 <= len(text) <= 300:
+                        raise ValueError('请填写并校对 1–300 字的生成文字')
+                    language = request.get('language', 'Chinese')
+                    if language not in LANGUAGES:
+                        raise ValueError('不支持的合成语言')
+                    ref_text = request.get('reference_text', '').strip()
+                    if len(ref_text) > 1000:
+                        raise ValueError('音色参考原文过长')
+                    canonical = {'source': request['source'], 'target': request['target'], 'text': text,
+                                 'language': language, 'reference_text': ref_text, 'model': MODEL.name}
                 ident = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
                 if ident in JOBS and JOBS[ident]['state'] in ('running', 'completed'):
                     return self.respond(JOBS[ident])

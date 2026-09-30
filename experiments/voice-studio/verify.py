@@ -27,4 +27,15 @@ transcribed.raise_for_status()
 assert '九' in transcribed.json()['text']
 assert session.post(URL+'/api/generate', headers=headers, json={'source': '../bad', 'target': presets['en']['id'], 'text': 'test'}, timeout=10).status_code == 400
 assert session.post(URL+'/api/upload', headers=headers, data=b'invalid audio', timeout=40).status_code == 400
-print(json.dumps({'passed': ['public fixture upload/decode', 'real CPU transcription', 'invalid audio rejected', 'invalid ID rejected', 'session token required', 'foreign Host and Origin rejected'], 'transcript': transcribed.json()['text']}, ensure_ascii=False))
+assert session.post(URL+'/api/generate', headers=headers, json={'engine': 'unknown', 'source': presets['zh']['id']}, timeout=10).status_code == 400
+assert session.post(URL+'/api/generate', headers=headers, json={'engine': 'seamless', 'source': presets['zh']['id'], 'target_language': 'invalid'}, timeout=10).status_code == 400
+seamless = session.get(URL+'/api/seamless', headers=headers, timeout=10)
+seamless.raise_for_status()
+assert 'eng' in seamless.json()['languages'] and 'cmn' in seamless.json()['languages']
+assert session.get(URL+'/api/seamless', timeout=10).status_code == 403
+for job in seamless.json()['examples']:
+    cached = session.post(URL+'/api/generate', headers=headers, json={'engine': 'seamless', 'source': job['source'], 'target_language': job['target_language']}, timeout=10)
+    cached.raise_for_status()
+    assert cached.json()['state'] == 'completed' and cached.json()['id'] == job['id']
+    assert session.get(URL+'/api/jobs/'+job['id'], headers=headers, timeout=10).json()['translated_text'] == job['translated_text']
+print(json.dumps({'passed': ['public fixture upload/decode', 'real CPU transcription', 'invalid audio rejected', 'invalid ID/engine/language rejected', 'session token required', 'foreign Host and Origin rejected', 'Seamless local capability API'], 'transcript': transcribed.json()['text']}, ensure_ascii=False))
