@@ -38,7 +38,7 @@ window.workflows=(()=>{
  function decorate(root,state,page,callback){current=state;refresh=callback;
   if(page==='settings')return;
   const header=root.querySelector('.page-heading,.recordings-heading');if(!header)return;
-  const bar=document.createElement('div');bar.className='workflow-toolbar';header.after(bar);
+  const bar=document.createElement('div');bar.className='workflow-toolbar';(page==='review'?root.querySelector('.review-list-heading')||header:header).after(bar);
   function add(label,fn){const b=document.createElement('button');b.className='button quiet';b.textContent=label;b.onclick=()=>Promise.resolve().then(fn).catch(e=>window.itemEditor({title:'未完成',message:e.message,submit:'知道了',onSave:async()=>{}}));bar.append(b);}
   const visible=(selector,attribute,items)=>[...root.querySelectorAll(selector)].filter(el=>!el.hidden&&!el.closest('[hidden]')).map(el=>items.find(r=>r.block_id===el.getAttribute(attribute))).filter(Boolean);
   if(page==='review'){add('批量归档',()=>batch(visible('[data-entry]','data-entry',state.expressions).filter(e=>e.body.status==='active')));add('导出表达',()=>exportDialog('expressions',visible('[data-entry]','data-entry',state.expressions)));}

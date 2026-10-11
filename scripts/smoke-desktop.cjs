@@ -18,12 +18,15 @@ async function launch() {
  assert(await page.locator('.brand-icon').evaluate(img=>img.complete&&img.naturalWidth>0));
  assert.equal(await page.locator('.brand small').textContent(),'by HOTPOOR XIALIWEI');
  await page.locator('#language-form [name="native_language"]').fill('zh-CN');await page.locator('#language-form [name="target_language"]').fill('en-US');await page.locator('#language-form button[type="submit"]').click();
+ assert.equal(await page.locator('.review-start-action').count(),3);
+ assert.equal(await page.locator('.review-start-action[data-home-page="voices"]').count(),1);
+ assert.equal(await page.locator('.review-start-action[data-home-page="recordings"]').count(),1);
  await page.waitForSelector('[data-action="example"]');await page.locator('[data-action="example"]').click();await page.locator('#save-editor').click();await page.waitForSelector('.entry');
  assert.equal(await page.locator('.improved').textContent(),'I really like this idea.');
  await page.locator('[data-action="favorite"]').click();await page.waitForSelector('[data-action="favorite"][aria-pressed="true"]');
  await page.locator('#search').fill('no-such-expression');assert.equal(await page.locator('.entry').count(),0);await page.locator('#search').fill('');
  const second={original:'Can you explain me this part?',improved:'Could you explain this part to me?',translation:'可以给我解释一下这部分吗？',explanation:'explain 的内容放在动词后面，用 to 引出听者。Could you 也让请求更委婉。',pattern:'Could you explain + 内容 + to me?',category:'动词搭配 <具体问题>'};
- await page.locator('.page-heading [data-action="add-expression"]').click();for(const [key,value]of Object.entries(second)){const field=page.locator(`#editor [name="${key}"]`);await field.fill(value);}await page.locator('#save-editor').click();await page.waitForFunction(()=>document.querySelectorAll('.entry').length===2);
+ await page.locator('.review-start-action[data-action="add-expression"]').click();for(const [key,value]of Object.entries(second)){const field=page.locator(`#editor [name="${key}"]`);await field.fill(value);}await page.locator('#save-editor').click();await page.waitForFunction(()=>document.querySelectorAll('.entry').length===2);
  assert.equal(await page.locator('.entry .meta .tag').first().textContent(),'动词搭配 <具体问题>');
  assert.equal(await page.locator('.practice-column').first().evaluate(el=>getComputedStyle(el).borderLeftWidth),'1px');
  assert.equal(await page.locator('#review-timeline [data-library-day]').count(),2);
@@ -34,7 +37,7 @@ async function launch() {
  await page.locator('#review-filter').selectOption('active');await page.locator('#review-timeline [data-library-order="newest"]').click();assert.equal(await page.locator('.improved').first().textContent(),second.improved);
 
 
- await page.locator('#main').evaluate(el=>el.scrollTop=400);
+ await page.locator('#main').evaluate(el=>el.scrollTop=el.scrollHeight);
  await page.waitForFunction(()=>Math.abs(document.querySelector('.review-searchbar').getBoundingClientRect().top-document.querySelector('#main').getBoundingClientRect().top)<2);
  await page.locator('[data-action="review-back-top"]').click();await page.waitForFunction(()=>document.querySelector('#main').scrollTop===0);
  await page.locator('#toast').waitFor({state:'hidden'});await page.screenshot({path:path.join(output,'review-desktop.png')});
