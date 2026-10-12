@@ -61,6 +61,12 @@ else {
       const progress=stage=>p=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,stage,...p});};
       return models.transcribeAll(service,app.getPath('userData'),input,progress('transcribing'));
     });
+    ipcMain.handle('sayagain:copyRecordingId',(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');
+      if(!['recording','recording_source','recording_clip'].includes(input?.kind))throw Error('无效的录音类型');
+      const record=service.entity(input.id,input.kind);
+      clipboard.writeText(record.block_id);return true;
+    });
     ipcMain.handle('sayagain:modelEvidenceCopy',(event,id)=>{
       if(!trusted(event))throw Error('无效来源');
       const record=require('../shared/model-evidence.js').records.find(record=>record.id===id);
