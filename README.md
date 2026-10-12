@@ -6,6 +6,8 @@
 
 iOS / iPadOS 客户端分为 [App Store 现代发行版](ios/app-store/README.md)和 [Legacy 老设备自用版](ios/legacy/README.md)，共享源码见 [ios/](ios/README.md)，包括[阶段成果](ios/docs/milestones.md)与[发行路线](ios/docs/distribution.md)。
 
+[安卓手表录音原型](android-watch/README.md)已提供熄屏持续采集、60秒精确 WAV 分片、异常恢复和桌面“导入手表录音”。第一阶段在 Android 9 真机完成短录与导入验证；蓝牙同步、AAC 压缩、VAD 自动丢弃静音及 iOS 接收仍待实现。
+
 SayAgain 从真实对话中发现值得改进的表达，保留原意、给出建议并解释原因，再用自己的音色听练。音频文件、录音与声纹角色库为这条学习流程提供材料和人物管理。
 
 1. **表达优化**：理解怎么说更自然、为什么这样改，积累可回顾的表达。

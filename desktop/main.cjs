@@ -56,6 +56,16 @@ else {
       }
       throw Error('无效分段操作');
     });
+    ipcMain.handle('sayagain:importWatchSession',async(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');
+      if(speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
+      if(input!==undefined&&(!input||typeof input!=='object'||Array.isArray(input)))throw Error('无效的导入参数');
+      const result=await dialog.showOpenDialog(win,{title:'导入手表录音 · 选择会话 manifest.json',properties:['openFile'],filters:[{name:'手表录音清单',extensions:['json']}]});
+      if(result.canceled)return null;
+      if(speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
+      const imported=require('./watch-import.cjs').importWatchSession(service,result.filePaths[0],{recording_id:input?.recording_id});
+      changed();return imported;
+    });
     ipcMain.handle('sayagain:reanalyzeRecording',async(event,input)=>{
       if(!trusted(event))throw Error('无效来源');const models=require('./recording-models.cjs');
       const progress=stage=>p=>{if(!event.sender.isDestroyed())event.sender.send('sayagain:recording-analysis-progress',{id:input.id,stage,...p});};

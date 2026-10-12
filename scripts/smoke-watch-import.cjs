@@ -1,0 +1,40 @@
+// Uses a real ADB-exported session in a disposable application profile; never starts a microphone.
+const {_electron:electron}=require('playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const root=path.resolve(__dirname,'..');
+const manifestPath=process.argv[2]&&path.resolve(process.argv[2]);
+if(!manifestPath||!fs.existsSync(manifestPath))throw Error('Usage: node scripts/smoke-watch-import.cjs /absolute/session/manifest.json');
+const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-watch-ui-'));
+const output=path.join(root,'test-results','watch');fs.mkdirSync(output,{recursive:true});
+let app;
+(async()=>{
+ app=await electron.launch({args:[root],env:{...process.env,SAYAGAIN_DATA_DIR:temporary},timeout:60000});
+ const page=await app.firstWindow(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.waitForSelector('#language-form');
+ await page.locator('#language-form [name="native_language"]').fill('zh-CN');
+ await page.locator('#language-form [name="target_language"]').fill('en-US');
+ await page.locator('#language-form button[type="submit"]').click();
+ await page.waitForSelector('[data-page="recordings"]');await page.locator('[data-page="recordings"]').click();
+ await page.waitForSelector('#watch-import');
+ await app.evaluate(({dialog},filename)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[filename]});},manifestPath);
+ await page.locator('#watch-import').click();
+ await page.waitForFunction(()=>document.querySelector('#recording-status')?.textContent.includes('手表录音已保存'));
+ const importStatus=await page.locator('#recording-status').textContent();
+ assert(importStatus.includes('手表录音已保存'),importStatus);
+ const first=await page.evaluate(()=>window.sayagain.state());
+ assert.equal(first.recordings.length,1);assert.equal(first.recording_clips.length,manifest.chunks.length);
+ assert(first.recording_clips.every(clip=>clip.body.source==='watch'));
+ assert.equal(first.recording_clips.reduce((n,c)=>n+c.body.duration_ms,0),manifest.chunks.reduce((n,c)=>n+c.sample_count*1000/manifest.sample_rate,0));
+ await page.screenshot({path:path.join(output,'import-desktop.png')});
+ await page.locator('#watch-import').click();
+ await page.waitForFunction(()=>document.querySelector('#recording-status')?.textContent.includes('新增 0 段'));
+ const repeated=await page.evaluate(()=>window.sayagain.state());
+ assert.equal(repeated.recordings.length,1);assert.equal(repeated.recording_clips.length,manifest.chunks.length);
+ assert.deepEqual(errors,[]);
+ console.log(`Passed Electron watch import: ${manifest.chunks.length} real device WAV chunks, same session, exact duration, duplicate button import adds zero clips.`);
+})().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
+ if(app)await app.close();
+ fs.rmSync(temporary,{recursive:true,force:true});
+});

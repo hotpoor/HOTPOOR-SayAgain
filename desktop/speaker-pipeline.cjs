@@ -37,13 +37,18 @@ function validateManifest(manifest,sources,folder){
   return{...c,format,filename};
  });
 }
-// Join adjacent microphone save blocks from the same take, never unrelated recordings.
+// Join save blocks by their capture identity. Watch clocks are unverified, so
+// exact sample positions and device/session IDs decide continuity there.
 function groupSources(sources){
  const groups=[];
  for(const source of sources){const previous=groups.at(-1);
-  if(previous&&source.source==='microphone'&&previous.source==='microphone'&&Math.abs((source.captured_at-source.offset_ms)-(previous.captured_at-previous.offset_ms))<2&&Math.abs(source.offset_ms-previous.offset_ms-previous.duration_ms)<2){
+  const a=previous?.watch,b=source.watch;
+  const watchContinuous=previous&&source.source==='watch'&&previous.source==='watch'&&a?.device_id&&a.device_id===b?.device_id&&a.session_id===b.session_id&&a.sample_rate===b.sample_rate&&(a.continuity_id??0)===(b.continuity_id??0)&&a.sample_start+a.sample_count===b.sample_start&&(previous.watch_last_index??a.index)+1===b.index;
+  const microphoneContinuous=previous&&source.source==='microphone'&&previous.source==='microphone'&&Math.abs((source.captured_at-source.offset_ms)-(previous.captured_at-previous.offset_ms))<2&&Math.abs(source.offset_ms-previous.offset_ms-previous.duration_ms)<2;
+  if(watchContinuous||microphoneContinuous){
    previous.members.push(source);previous.audio_parts.push(source.audio);previous.duration_ms+=source.duration_ms;
-  }else groups.push({...source,members:[source],audio_parts:[source.audio]});
+   if(watchContinuous){previous.watch.sample_count+=b.sample_count;previous.watch_last_index=b.index;previous.duration_ms=previous.watch.sample_count*1000/previous.watch.sample_rate;}
+  }else groups.push({...source,...(source.watch?{watch:{...source.watch}}:{}),members:[source],audio_parts:[source.audio]});
  }
  return groups;
 }
@@ -59,7 +64,9 @@ function persist(service,folder,manifest,sources,title,parent){
    const asset_id=newId(),relative_path=`assets/${asset_id}.wav`,filename=path.join(service.directory,relative_path);
    const bytes=fs.readFileSync(c.filename),fd=fs.openSync(filename,'wx',0o600);created.push(filename);
    try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
-   return{...c,asset_id,relative_path,sha256:createHash('sha256').update(bytes).digest('hex'),byte_size:bytes.length};
+   const sample_count=(require('./audio.cjs').normalizeCloudWav(bytes).length-44)/(c.format.channels*2);
+   if(sources[c.source_index].watch&&(c.format.sample_rate!==sources[c.source_index].watch.sample_rate||c.format.channels!==1))throw Error('手表分段结果改变了原采样格式');
+   return{...c,asset_id,relative_path,sha256:createHash('sha256').update(bytes).digest('hex'),byte_size:bytes.length,sample_count};
   });
   const joinedAssets=new Map();
   for(const [index,source] of sources.entries())if(source.audio_parts?.length>1){
@@ -95,13 +102,15 @@ function persist(service,folder,manifest,sources,title,parent){
    if(parent)for(const [index,source] of sources.entries())if(source.members?.every(s=>s.id)){
     const joined=joinedAssets.get(index);if(joined)service.store.put({type:'asset',profile_id:service.profileId,relative_path:joined.relative_path,media_type:'audio/wav',byte_size:joined.byte_size,duration_ms:source.duration_ms},{id:joined.asset_id});
     const retained_notes=source.members.map(s=>service.entity(s.id,'recording_clip')).filter(c=>c.body.transcript_status==='user_reviewed'&&c.body.transcript).map(c=>({offset_ms:c.body.source_offset_ms,text:c.body.transcript}));
-    sourceIds.set(index,service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:source.name,sequence:sourceBase+index,original_asset_id:joined?.asset_id||source.members[0].asset_id,input_assets:source.members.map(s=>s.asset_id),legacy:true,retained_notes,duration_ms:source.duration_ms,segmented:true,pipeline,speaker_map:Object.fromEntries(speakerMap)}).block_id);
+    sourceIds.set(index,service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:source.name,sequence:sourceBase+index,original_asset_id:joined?.asset_id||source.members[0].asset_id,input_assets:source.members.map(s=>s.asset_id),legacy:true,retained_notes,duration_ms:source.duration_ms,...(source.watch?{source:'watch',watch:source.watch,source_offset_ms:source.offset_ms,captured_at:source.captured_at,original_time:source.original_time}:{}),segmented:true,pipeline,speaker_map:Object.fromEntries(speakerMap)}).block_id);
    }
    for(const [sequence,c] of prepared.entries()){
     const speaker=c.speaker?speakerMap.get(c.speaker):null,speakers=c.speakers?.map(k=>speakerMap.get(k));
     const source=sources[c.source_index];const clipSourceId=sourceId||sourceIds.get(c.source_index);
+    const watch=source.watch?{...source.watch,kind:'speech',sample_start:source.watch.sample_start+Math.round(c.start_ms*source.watch.sample_rate/1000),sample_count:c.sample_count,source_chunk_ids:(source.members||[source]).map(s=>s.watch?.chunk_id).filter(Boolean)}:null;
+    const original_time=source.original_time?{...source.original_time,value_ms:source.captured_at+c.start_ms}:null;
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:c.relative_path,sha256:c.sha256,media_type:'audio/wav',byte_size:c.byte_size,duration_ms:c.format.duration_ms},{id:c.asset_id});
-    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(clipSourceId?{recording_source_id:clipSourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence:sequenceBase+sequence,source:source.source||'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker,...(speakers?{speakers}:{})}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:speaker||'不确定',...(speakers?{speakers}:{})}]},speaker,machine_speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.members?.length>1?null:source.id||null,source_clip_ids:(source.members||[source]).map(s=>s.id).filter(Boolean),source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.members||[source]).filter(s=>s.id).map(s=>({relation:'source_clip',target_id:s.id}))]});
+    service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(clipSourceId?{recording_source_id:clipSourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence:sequenceBase+sequence,source:source.source||'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at!==null&&source.captured_at!==undefined?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,...(watch?{watch,sample_start:watch.sample_start,sample_count:watch.sample_count,original_time}:{}),transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker,...(speakers?{speakers}:{})}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:speaker||'不确定',...(speakers?{speakers}:{})}]},speaker,machine_speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.members?.length>1?null:source.id||null,source_clip_ids:(source.members||[source]).map(s=>s.id).filter(Boolean),source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.members||[source]).filter(s=>s.id).map(s=>({relation:'source_clip',target_id:s.id}))]});
    }
    // Archive only raw checkpoints being replaced; preserve their audio and any user notes.
    for(const clip of pending)service.update(clip,{status:'archived',archived_at:Date.now(),parsed_into_recording:recordingId});
@@ -121,7 +130,7 @@ class SpeakerPipeline{
    if(source.body.recording_id!==input.id||!source.body.original_asset_id)throw Error('没有可用于对比的原音频');
    parent=this.service.entity(input.id,'recording');title=parent.body.title;
    const asset=this.service.asset(source.body.original_asset_id);
-   sources=[{audio:asset.filename,name:source.body.name,offset_ms:0,duration_ms:source.body.duration_ms}];
+   sources=[{audio:asset.filename,name:source.body.name,offset_ms:source.body.source_offset_ms||0,duration_ms:source.body.duration_ms,...(source.body.watch?{source:'watch',watch:source.body.watch,captured_at:source.body.captured_at,original_time:source.body.original_time}:{})}];
   }else if(input.filename){
    const filename=path.resolve(input.filename),stat=fs.statSync(filename);
    if(!stat.isFile()||stat.size>2*1024**3)throw Error('请选择不超过2GB的音频文件');
@@ -130,7 +139,7 @@ class SpeakerPipeline{
   }else{
    if(require('./recording-import.cjs').isBusy(input.id)||require('./recording-models.cjs').isBusy(this.service,input.id))throw Error('此会话正在处理');
    parent=this.service.entity(input.id,'recording');title=parent.body.title;
-   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived'&&!c.body.pipeline_version).sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,asset_id:c.body.asset_id,source:c.body.source,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.duration_ms,captured_at:c.body.captured_at}));
+   sources=this.service.store.list('recording_clip').filter(c=>c.body.recording_id===input.id&&c.body.status!=='archived'&&!c.body.pipeline_version).sort((a,b)=>a.body.sequence-b.body.sequence).map(c=>({id:c.block_id,revision:c.body.revision,asset_id:c.body.asset_id,source:c.body.source,audio:this.service.asset(c.body.asset_id).filename,name:c.body.source_name,offset_ms:c.body.source_offset_ms,duration_ms:c.body.watch?c.body.watch.sample_count*1000/c.body.watch.sample_rate:c.body.duration_ms,captured_at:c.body.captured_at,watch:c.body.watch,original_time:c.body.original_time}));
    if(input.clip_ids!==undefined){
     if(!Array.isArray(input.clip_ids)||!input.clip_ids.length||new Set(input.clip_ids).size!==input.clip_ids.length||input.clip_ids.some(id=>!sources.some(s=>s.id===id)))throw Error('录音素材选择无效');
     sources=sources.filter(s=>input.clip_ids.includes(s.id));

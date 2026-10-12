@@ -69,21 +69,27 @@ module.exports=Service=>{
  Service.prototype.addRecordingClip=function(input){
   this.entity(input.recording_id,'recording');
   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(input.client_id||''))throw Error('无效的录音片段标识');
-  if(!['microphone','import'].includes(input.source))throw Error('无效的音频来源');
+  if(!['microphone','import','watch'].includes(input.source))throw Error('无效的音频来源');
   if(!(input.bytes instanceof Uint8Array)||input.bytes.length>25*1024*1024)throw Error('单段音频不能超过25MB');
   const bytes=Buffer.from(input.bytes),format=parseWav(bytes),sha=createHash('sha256').update(bytes).digest('hex');
+  const watch=input.source==='watch'?require('./watch-import.cjs').validateWatchClip(input,bytes):null;
   const existing=this.store.list('recording_clip').find(r=>r.body.recording_id===input.recording_id&&r.body.client_id===input.client_id);
-  if(existing){if(existing.body.sha256!==sha)throw Error('同一片段标识的内容不同');return existing;}
+  if(existing){if(existing.body.sha256!==sha||(watch&&JSON.stringify(existing.body.watch)!==JSON.stringify(watch)))throw Error('同一片段标识的内容或元数据不同');return existing;}
   const sourceName=String(input.source_name||'麦克风');if(sourceName.length>500)throw Error('文件名过长');
-  const offset=Number(input.source_offset_ms||0);if(!Number.isFinite(offset)||offset<0)throw Error('无效的片段起点');
-  const captured=input.source==='microphone'?Number(input.captured_at):null;
-  if(captured!==null&&(!Number.isFinite(captured)||captured<=0||captured>Date.now()+60000))throw Error('无效的录音时间');
+  const offset=watch?watch.sample_start*1000/watch.sample_rate:Number(input.source_offset_ms||0);if(!Number.isFinite(offset)||offset<0)throw Error('无效的片段起点');
+  const captured=watch?watch.started_at_ms+offset:input.source==='microphone'?Number(input.captured_at):null;
+  if(!watch&&captured!==null&&(!Number.isFinite(captured)||captured<=0||captured>Date.now()+60000))throw Error('无效的录音时间');
   const assetId=newId(),relative=`assets/${assetId}.wav`,filename=path.join(this.directory,relative);
-  const fd=fs.openSync(filename,'wx',0o600);try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
-  try{return this.store.transaction(()=>{
+  const fd=fs.openSync(filename,'wx',0o600);
+  try{
+   try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+   if(watch&&process.platform!=='win32'){
+    const directoryFd=fs.openSync(path.dirname(filename),'r');try{fs.fsyncSync(directoryFd);}finally{fs.closeSync(directoryFd);}
+   }
+   return this.store.transaction(()=>{
    const session=this.entity(input.recording_id,'recording');
    this.store.put({type:'asset',profile_id:this.profileId,relative_path:relative,sha256:sha,media_type:'audio/wav',byte_size:bytes.length,duration_ms:format.duration_ms},{id:assetId});
-   const clip=this.store.put({type:'recording_clip',profile_id:this.profileId,recording_id:session.block_id,client_id:input.client_id,asset_id:assetId,sha256:sha,sequence:this.store.list('recording_clip').filter(c=>c.body.recording_id===session.block_id).reduce((n,c)=>Math.max(n,c.body.sequence+1),0),source:input.source,source_name:sourceName,source_offset_ms:offset,captured_at:captured,imported_at:Date.now(),...format,transcript:'',transcript_status:'not_started',links:[{relation:'recording',target_id:session.block_id},{relation:'asset',target_id:assetId}]});
+   const clip=this.store.put({type:'recording_clip',profile_id:this.profileId,recording_id:session.block_id,client_id:input.client_id,asset_id:assetId,sha256:sha,sequence:this.store.list('recording_clip').filter(c=>c.body.recording_id===session.block_id).reduce((n,c)=>Math.max(n,c.body.sequence+1),0),source:input.source,source_name:sourceName,source_offset_ms:offset,captured_at:captured,imported_at:Date.now(),...format,...(watch?{watch,sample_start:watch.sample_start,sample_count:watch.sample_count,original_time:{value_ms:captured,source:'device_clock',reliability:'unverified'}}:{}),transcript:'',transcript_status:'not_started',links:[{relation:'recording',target_id:session.block_id},{relation:'asset',target_id:assetId}]});
    this.update(session,{clip_count:session.body.clip_count+1,duration_ms:session.body.duration_ms+format.duration_ms});return clip;
   });}catch(error){fs.unlinkSync(filename);throw error;}
  };
