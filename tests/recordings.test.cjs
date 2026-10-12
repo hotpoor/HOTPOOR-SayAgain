@@ -1,6 +1,20 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {Service}=require('../desktop/service.cjs');
 function wav(){const b=Buffer.alloc(44+32000);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(32000,40);return b;}
+
+test('typed multiline annotations persist independently from transcripts and reject stale writes',t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-annotations-'));let s=new Service(root);t.after(()=>{s.close();fs.rmSync(root,{recursive:true,force:true});});
+ const session=s.createRecording({title:'多行内容'}),clip=s.addRecordingClip({recording_id:session.block_id,client_id:'one',source:'import',bytes:wav()});
+ const original=s.updateRecordingTranscript({id:clip.block_id,revision:clip.body.revision,text:'Original speech'});
+ const rows=[{kind:'translation',text:'中文翻译\n第二行'},{kind:'intent',text:'询问对方的计划'},{kind:'explanation',text:'语气与句型解释'}];
+ const saved=s.updateRecordingAnnotations({id:clip.block_id,revision:original.body.revision,rows});
+ assert.equal(saved.body.transcript,'Original speech');assert.equal(saved.body.asset_id,clip.body.asset_id);assert.deepEqual(saved.body.annotations,rows);
+ assert.throws(()=>s.updateRecordingAnnotations({id:clip.block_id,revision:original.body.revision,rows:[]}),/更新/);
+ for(const invalid of [[{kind:'unknown',text:'x'}],[{kind:'translation',text:'  '}],Array(21).fill(rows[0])])assert.throws(()=>s.updateRecordingAnnotations({id:clip.block_id,revision:saved.body.revision,rows:invalid}));
+ const rewritten=s.update(saved,{transcript:'New machine transcription',transcript_status:'machine_unreviewed'});assert.deepEqual(rewritten.body.annotations,rows);
+ s.close();s=new Service(root);const reopened=s.entity(clip.block_id,'recording_clip');assert.deepEqual(reopened.body.annotations,rows);
+ const cleared=s.updateRecordingAnnotations({id:clip.block_id,revision:reopened.body.revision,rows:[]});assert.deepEqual(cleared.body.annotations,[]);assert.equal(cleared.body.transcript,'New machine transcription');
+});
 test('recording groups persist multiple clips, retry dedupes, notes do not replace audio',t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-recordings-'));let s=new Service(root);t.after(()=>{s.close();fs.rmSync(root,{recursive:true,force:true});});
  const recording=s.createRecording({title:'会话'}),base={recording_id:recording.block_id,bytes:wav(),source:'import',source_name:'clip.wav'};

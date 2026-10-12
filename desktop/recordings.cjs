@@ -87,6 +87,18 @@ module.exports=Service=>{
    this.update(session,{clip_count:session.body.clip_count+1,duration_ms:session.body.duration_ms+format.duration_ms});return clip;
   });}catch(error){fs.unlinkSync(filename);throw error;}
  };
+ Service.prototype.updateRecordingAnnotations=function(input){
+  const clip=this.entity(input.id,'recording_clip');
+  if(clip.body.status==='archived'||clip.body.revision!==input.revision)throw Error('片段已更新，请刷新后重试');
+  if(require('./recording-import.cjs').isBusy(clip.body.recording_id)||require('./recording-models.cjs').isBusy(this,clip.body.recording_id))throw Error('请等待当前录音处理完成');
+  const kinds=['translation','intent','improvement','explanation','note'];
+  if(!Array.isArray(input.rows)||input.rows.length>20)throw Error('每段最多添加20行内容');
+  const annotations=input.rows.map(row=>{
+   if(!row||!kinds.includes(row.kind)||typeof row.text!=='string'||!row.text.trim()||row.text.length>5000)throw Error('请选择内容类型，并填写1–5000字的内容');
+   return {kind:row.kind,text:row.text.trim()};
+  });
+  return this.update(clip,{annotations});
+ };
  Service.prototype.updateRecordingTranscript=function(input){
   const clip=this.entity(input.id,'recording_clip');
   if(clip.body.revision!==input.revision)throw Error('录音已更新，请刷新');

@@ -33,11 +33,11 @@ else {
     bridge=await startBridge(service,app.getPath('userData'),changed);
     speakerPipeline=new (require('./speaker-pipeline.cjs').SpeakerPipeline)(service,app.getPath('userData'),changed);
     speech=new Speech(service,app.getPath('userData'),{secrets:createSecrets(app.getPath('userData')),fetch:(url,options)=>net.fetch(url,options),onChange:changed});
-    const methods = ['expressionFromClip','managePerson','archiveItem','editRecording','editSample','saveRecordingPerson','linkRecordingPerson','updateRecordingSpeaker','confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
+    const methods = ['expressionFromClip','managePerson','archiveItem','editRecording','editSample','saveRecordingPerson','linkRecordingPerson','updateRecordingSpeaker','confirmRecordingTurns','clearRecordingAnalysis','createRecording','addRecordingClip','updateRecordingTranscript','updateRecordingAnnotations','setIntegration', 'state', 'saveSettings', 'addExpression', 'editExpression', 'saveVoice', 'archiveVoice', 'defaultVoice', 'defaultSample', 'addSample'];
     for (const method of methods) ipcMain.handle(`sayagain:${method}`, (event, value) => {
       if (!trusted(event)) throw new Error('无效的页面来源');
       if (method !== 'state' && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('无效的操作参数');
-      if(['archiveItem','editRecording','updateRecordingTranscript'].includes(method)&&speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
+      if(['archiveItem','editRecording','updateRecordingTranscript','updateRecordingAnnotations'].includes(method)&&speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
       if(method==='state')return {...service.state(),speech:speech.status()};
       return service[method](value);
     });
