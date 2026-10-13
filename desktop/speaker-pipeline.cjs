@@ -21,7 +21,9 @@ function readRuntime(directory,engine='campplus'){
  return r;
 }
 function validateManifest(manifest,sources,folder){
- if(manifest.version!=='speaker-clips-v1'||!Array.isArray(manifest.clips)||!manifest.clips.length||manifest.clips.length>10000)throw Error('分段结果无效或没有语音');
+ if(manifest.version!=='speaker-clips-v1'||!Array.isArray(manifest.clips)||manifest.clips.length>10000)throw Error('分段结果无效或没有语音');
+ if(!manifest.clips.length&&!(manifest.no_speech===true&&manifest.clustering?.reason==='no_speech'&&['silero','fsmn'].includes(manifest.vad)&&Number.isFinite(manifest.duration_ms)&&manifest.duration_ms>0))throw Error('空语音结果需要明确的语音检测结果');
+ if(manifest.clips.length&&manifest.no_speech===true)throw Error('语音检测结果与片段矛盾');
  const files=new Set(),last=new Map();let previousSource=-1;
  return manifest.clips.map(c=>{
   if(!Number.isInteger(c.source_index)||!sources[c.source_index]||c.source_index<previousSource||!Number.isInteger(c.start_ms)||!Number.isInteger(c.end_ms)||c.start_ms<0||c.end_ms<=c.start_ms||c.end_ms-c.start_ms>18001||c.start_ms<(last.get(c.source_index)||0))throw Error('分段时间戳无效');
@@ -47,8 +49,8 @@ function groupSources(sources){
   const microphoneContinuous=previous&&source.source==='microphone'&&previous.source==='microphone'&&Math.abs((source.captured_at-source.offset_ms)-(previous.captured_at-previous.offset_ms))<2&&Math.abs(source.offset_ms-previous.offset_ms-previous.duration_ms)<2;
   if(watchContinuous||microphoneContinuous){
    previous.members.push(source);previous.audio_parts.push(source.audio);previous.duration_ms+=source.duration_ms;
-   if(watchContinuous){previous.watch.sample_count+=b.sample_count;previous.watch_last_index=b.index;previous.duration_ms=previous.watch.sample_count*1000/previous.watch.sample_rate;}
-  }else groups.push({...source,...(source.watch?{watch:{...source.watch}}:{}),members:[source],audio_parts:[source.audio]});
+   if(watchContinuous){previous.watch.sample_count+=b.sample_count;previous.watch.source_chunk_ids.push(...(b.source_chunk_ids||[b.chunk_id]).filter(Boolean));previous.watch_last_index=b.index;previous.duration_ms=previous.watch.sample_count*1000/previous.watch.sample_rate;}
+  }else groups.push({...source,...(source.watch?{watch:{...source.watch,source_chunk_ids:[...(source.watch.source_chunk_ids||[source.watch.chunk_id]).filter(Boolean)]}}:{}),members:[source],audio_parts:[source.audio]});
  }
  return groups;
 }
@@ -96,7 +98,7 @@ function persist(service,folder,manifest,sources,title,parent){
    let sourceId=null;
    if(original){
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:original.relative,media_type:original.ext==='.mp3'?'audio/mpeg':original.ext==='.wav'?'audio/wav':'audio/mp4',byte_size:original.byte_size},{id:original.id});
-    sourceId=service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:sources[0].name,sequence:sourceBase,original_asset_id:original.id,input_assets:[original.id],duration_ms:manifest.duration_ms,segmented:true,pipeline,speaker_map:Object.fromEntries(speakerMap)}).block_id;
+    sourceId=service.store.put({type:'recording_source',profile_id:service.profileId,recording_id:recordingId,name:sources[0].name,sequence:sourceBase,original_asset_id:original.id,input_assets:[original.id],duration_ms:manifest.duration_ms,...(sources[0].watch?{source:'watch',watch:sources[0].watch,source_offset_ms:sources[0].offset_ms,captured_at:sources[0].captured_at,original_time:sources[0].original_time}:{}),segmented:true,pipeline,speaker_map:Object.fromEntries(speakerMap)}).block_id;
    }
    const sourceIds=new Map();
    if(parent)for(const [index,source] of sources.entries())if(source.members?.every(s=>s.id)){
@@ -107,7 +109,7 @@ function persist(service,folder,manifest,sources,title,parent){
    for(const [sequence,c] of prepared.entries()){
     const speaker=c.speaker?speakerMap.get(c.speaker):null,speakers=c.speakers?.map(k=>speakerMap.get(k));
     const source=sources[c.source_index];const clipSourceId=sourceId||sourceIds.get(c.source_index);
-    const watch=source.watch?{...source.watch,kind:'speech',sample_start:source.watch.sample_start+Math.round(c.start_ms*source.watch.sample_rate/1000),sample_count:c.sample_count,source_chunk_ids:(source.members||[source]).map(s=>s.watch?.chunk_id).filter(Boolean)}:null;
+    const watch=source.watch?{...source.watch,kind:'speech',sample_start:source.watch.sample_start+Math.round(c.start_ms*source.watch.sample_rate/1000),sample_count:c.sample_count,source_chunk_ids:source.watch.source_chunk_ids||(source.members||[source]).map(s=>s.watch?.chunk_id).filter(Boolean)}:null;
     const original_time=source.original_time?{...source.original_time,value_ms:source.captured_at+c.start_ms}:null;
     service.store.put({type:'asset',profile_id:service.profileId,relative_path:c.relative_path,sha256:c.sha256,media_type:'audio/wav',byte_size:c.byte_size,duration_ms:c.format.duration_ms},{id:c.asset_id});
     service.store.put({type:'recording_clip',profile_id:service.profileId,recording_id:recordingId,...(clipSourceId?{recording_source_id:clipSourceId}:{}),client_id:newId(),asset_id:c.asset_id,sha256:c.sha256,sequence:sequenceBase+sequence,source:source.source||'import',source_name:source.name,source_offset_ms:(source.offset_ms||0)+c.start_ms,captured_at:source.captured_at!==null&&source.captured_at!==undefined?source.captured_at+c.start_ms:null,imported_at:Date.now(),...c.format,...(watch?{watch,sample_start:watch.sample_start,sample_count:watch.sample_count,original_time}:{}),transcript:c.text,transcript_status:c.text?'machine_unreviewed':'empty',transcript_segments:c.text?[{start_ms:0,end_ms:c.format.duration_ms,text:c.text,speaker,...(speakers?{speakers}:{})}]:[],transcription_language:manifest.options?.language||'auto',speaker_analysis:{status:'machine_unreviewed',segments:[{start_ms:0,end_ms:c.format.duration_ms,speaker:speaker||'不确定',...(speakers?{speakers}:{})}]},speaker,machine_speaker:c.speaker,speaker_similarity:c.similarity,needs_review:c.review,source_clip_id:source.members?.length>1?null:source.id||null,source_clip_ids:(source.members||[source]).map(s=>s.id).filter(Boolean),source_clip_start_ms:c.start_ms,source_clip_end_ms:c.end_ms,pipeline_version:manifest.version,links:[{relation:'recording',target_id:recordingId},{relation:'asset',target_id:c.asset_id},...(source.members||[source]).filter(s=>s.id).map(s=>({relation:'source_clip',target_id:s.id}))]});
@@ -115,7 +117,9 @@ function persist(service,folder,manifest,sources,title,parent){
    // Archive only raw checkpoints being replaced; preserve their audio and any user notes.
    for(const clip of pending)service.update(clip,{status:'archived',archived_at:Date.now(),parsed_into_recording:recordingId});
    const active=service.store.list('recording_clip').filter(c=>c.body.recording_id===recordingId&&c.body.status!=='archived');
-   return service.update(session,{clip_count:active.length,duration_ms:active.reduce((n,c)=>n+c.body.duration_ms,0),pipeline});
+   const watchSpeech=active.filter(c=>c.body.watch?.kind==='speech'),checkedWatchChunks=service.store.list('recording_clip').filter(c=>c.body.recording_id===recordingId&&c.body.watch?.kind==='chunk'&&(c.body.pipeline_version||c.body.parsed_into_recording===recordingId));
+   const watch_recognition=session.body.watch&&sources.some(s=>s.watch)?{state:watchSpeech.length?'recognized':'no_speech',speech_clip_count:watchSpeech.length,checked_chunk_ids:checkedWatchChunks.map(c=>c.body.watch.chunk_id),sample_count:checkedWatchChunks.reduce((n,c)=>n+c.body.watch.sample_count,0),completed_at:Date.now(),engine:manifest.engine||'campplus',vad:manifest.vad}:undefined;
+   return service.update(session,{clip_count:active.length,duration_ms:active.reduce((n,c)=>n+c.body.duration_ms,0),pipeline,...(watch_recognition?{watch_recognition}:{})});
   });
  }catch(error){for(const filename of created)fs.rmSync(filename,{force:true});throw error;}
 }
@@ -151,7 +155,7 @@ class SpeakerPipeline{
   sources=groupSources(sources);
   if(settings.engine==='nemotron'&&sources.length!==1)throw Error('NVIDIA 对比模式每次处理一份完整音频');
   const folder=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-speaker-'));
-  this.job={id:newId(),state:'running',stage:'starting',engine:settings.engine,done:0,total:0,started_at:Date.now()};
+  this.job={id:newId(),recording_id:input.id||null,state:'running',stage:'starting',engine:settings.engine,done:0,total:0,started_at:Date.now()};
   let child;try{child=spawn(runtime.python,[path.join(__dirname,settings.engine==='nemotron'?'../workers/nemotron_pipeline.py':'../workers/speaker_pipeline.py')],{detached:process.platform!=='win32',windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PYTHONIOENCODING:'utf-8',HF_HUB_OFFLINE:'1',TRANSFORMERS_OFFLINE:'1',OPENBLAS_NUM_THREADS:'1',OMP_NUM_THREADS:'4'}});}catch(e){fs.rmSync(folder,{recursive:true,force:true});this.job={...this.job,state:'failed',error:e.message};throw e;}
   this.child=child;let output='',stderr='',lastError='',cancelled=false,timedOut=false,settled=false;
   const finish=(error)=>{

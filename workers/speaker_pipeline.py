@@ -167,13 +167,12 @@ def run(request):
                     if not np.isfinite(e).all() or norm < 1e-9: continue
                     embeddings.append(e/norm); windows.append((t,stop,ri))
         progress('voiceprints', si+1, len(sources))
-    if not regions: raise ValueError('No speech found')
     progress('cluster')
     windows = np.array(windows).reshape((-1,3)); embeddings = np.array(embeddings)
     if len(embeddings):
         labels, similarity, stats = cluster(embeddings, windows, config['speaker_count'])
     else:
-        labels = []; similarity = []; stats = {'speakers': 0, 'reason': 'speech_too_short'}
+        labels = []; similarity = []; stats = {'speakers': 0, 'reason': 'speech_too_short' if regions else 'no_speech'}
     turns = []
     for ri,(si,a,b) in enumerate(regions):
         ids = np.flatnonzero(windows[:,2] == ri)
@@ -191,7 +190,7 @@ def run(request):
             else:
                 turns.append({'source':si,'start':aa,'end':bb,'label':label,'similarities':[sim]})
     recognizer=None
-    if request.get('transcribe',True):
+    if turns and request.get('transcribe',True):
         recognizer_path=pathlib.Path(models['sensevoice']['path'])
         model=next(recognizer_path.glob('*int8.onnx'))
         recognizer=sh.OfflineRecognizer.from_sense_voice(model=str(model),tokens=str(recognizer_path/'tokens.txt'),language=config['language'],use_itn=True,num_threads=4)
@@ -222,7 +221,7 @@ def run(request):
                 for block in iter(lambda:stream.read(1024*1024),b''):h.update(block)
             hashes[key+'/'+f.name]=h.hexdigest()
     import sklearn, platform
-    result={'runtime_versions':{'python':platform.python_version(),'numpy':np.__version__,'scikit_learn':sklearn.__version__},'version':VERSION,'options':config,'vad':vad_name,'clustering':stats,'model_hashes':hashes,'sherpa_onnx_version':sh.__version__,'duration_ms':round(duration*1000),'clips':clips}
+    result={'runtime_versions':{'python':platform.python_version(),'numpy':np.__version__,'scikit_learn':sklearn.__version__},'version':VERSION,'options':config,'vad':vad_name,'clustering':stats,'model_hashes':hashes,'sherpa_onnx_version':sh.__version__,'duration_ms':round(duration*1000),'no_speech':not regions,'clips':clips}
     (out/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     for si,f in enumerate(decoded):
         if len(sources[si].get('audio_parts', [])) <= 1: f.unlink()

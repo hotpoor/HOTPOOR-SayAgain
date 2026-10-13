@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const invoke = method => value => ipcRenderer.invoke(`sayagain:${method}`, value);
 contextBridge.exposeInMainWorld('sayagain', {
  importWatchSession:invoke('importWatchSession'),
+ watchPlayback:invoke('watchPlayback'),
  expressionFromClip:invoke('expressionFromClip'),inferenceKeysStatus:invoke('inferenceKeysStatus'),inferenceKeysReveal:invoke('inferenceKeysReveal'),inferenceKeysCopy:invoke('inferenceKeysCopy'),inferenceKeysUpdate:invoke('inferenceKeysUpdate'),inferenceKeysReport:invoke('inferenceKeysReport'),textReviewStatus:invoke('textReviewStatus'),textReviewModels:invoke('textReviewModels'),clearTextReview:invoke('clearTextReview'),configureTextReview:invoke('configureTextReview'),improveText:invoke('improveText'),exportItems:invoke('exportItems'),managePerson:invoke('managePerson'),inspectBackup:invoke('inspectBackup'),restoreBackup:invoke('restoreBackup'),archiveItem:invoke('archiveItem'),editRecording:invoke('editRecording'),editSample:invoke('editSample'),
  saveRecordingPerson:invoke('saveRecordingPerson'),linkRecordingPerson:invoke('linkRecordingPerson'),updateRecordingSpeaker:invoke('updateRecordingSpeaker'),speakerPipeline:invoke('speakerPipeline'),confirmRecordingTurns:invoke('confirmRecordingTurns'),
   reanalyzeRecording:invoke('reanalyzeRecording'),

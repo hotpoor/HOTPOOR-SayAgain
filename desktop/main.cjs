@@ -63,8 +63,14 @@ else {
       const result=await dialog.showOpenDialog(win,{title:'导入手表录音 · 选择会话 manifest.json',properties:['openFile'],filters:[{name:'手表录音清单',extensions:['json']}]});
       if(result.canceled)return null;
       if(speakerPipeline.status().state==='running')throw Error('请先等待或取消当前录音解析任务');
-      const imported=require('./watch-import.cjs').importWatchSession(service,result.filePaths[0],{recording_id:input?.recording_id});
+      const imported=require('./watch-import.cjs').importWatchSession(service,result.filePaths[0],{recording_id:input?.recording_id,prepare_playback:true});
       changed();return imported;
+    });
+    ipcMain.handle('sayagain:watchPlayback',(event,input)=>{
+      if(!trusted(event))throw Error('无效来源');
+      if(!input||typeof input.id!=='string'||!/^[0-9a-f]{32}$/.test(input.id))throw Error('无效的录音会话');
+      const result=require('./watch-playback.cjs').ensureWatchPlayback(service,input.id);
+      changed();return result;
     });
     ipcMain.handle('sayagain:reanalyzeRecording',async(event,input)=>{
       if(!trusted(event))throw Error('无效来源');const models=require('./recording-models.cjs');

@@ -72,7 +72,7 @@ function checkPrevious(previous,manifest,raw){
  }
 }
 function watchFor(manifest,chunk){return {schema:SCHEMA,device_id:manifest.device_id,session_id:manifest.session_id,chunk_id:chunk.id,index:chunk.index,sample_start:chunk.sample_start,sample_count:chunk.sample_count,started_at_ms:manifest.started_at_ms,started_elapsed_ns:manifest.started_elapsed_ns,recovered:chunk.recovered,continuity_id:manifest.gaps.filter(g=>g.sample_count===0&&g.sample_start<=chunk.sample_start).length};}
-function importWatchSession(service,manifestPath,{recording_id,title}={}){
+function importWatchSession(service,manifestPath,{recording_id,title,prepare_playback=false}={}){
  const filename=path.resolve(manifestPath),folder=path.dirname(filename),directory=fs.lstatSync(folder);
  if(!directory.isDirectory()||directory.isSymbolicLink())throw Error('手表会话目录不能为符号链接');
  if(path.basename(filename)!=='manifest.json')throw Error('请选择手表会话的 manifest.json');
@@ -123,7 +123,9 @@ function importWatchSession(service,manifestPath,{recording_id,title}={}){
    acknowledgements.push({id:chunk.id,index:chunk.index,sha256:chunk.sha256,status:'STORED',clip_id:clip.block_id});
   }
   session=service.update(service.entity(session.block_id,'recording'),{watch_import_status:'stored',watch_imported_chunks:manifest.chunks.length,watch_imported_at:Date.now()});
-  return {recording_id:session.block_id,session,watch_status:manifest.status,imported_count,stored_count:acknowledgements.length,chunks:acknowledgements,pending_capture_samples:manifest.samples_captured-manifest.sealed_samples,durable_unsealed_samples:manifest.durable_samples-manifest.sealed_samples,gaps:manifest.gaps};
+  let playback,playback_error;
+  if(prepare_playback){try{playback=require('./watch-playback.cjs').ensureWatchPlayback(service,session.block_id);}catch(error){playback_error=error.message;}session=service.entity(session.block_id,'recording');}
+  return {recording_id:session.block_id,session,watch_status:manifest.status,imported_count,stored_count:acknowledgements.length,chunks:acknowledgements,pending_capture_samples:manifest.samples_captured-manifest.sealed_samples,durable_unsealed_samples:manifest.durable_samples-manifest.sealed_samples,gaps:manifest.gaps,...(playback?{playback}:{}),...(playback_error?{playback_error}:{})};
  }finally{if(staging)fs.rmSync(staging,{recursive:true,force:true});}
 }
 module.exports={importWatchSession,validateManifest,inspectWatchWav,validateWatchClip,SCHEMA};
