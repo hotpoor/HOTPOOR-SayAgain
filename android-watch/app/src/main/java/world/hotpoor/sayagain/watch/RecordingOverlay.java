@@ -16,6 +16,10 @@ import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.widget.TextView;
+import android.widget.LinearLayout;
+import android.view.View;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Toast;
 
 /** A small status window owned exclusively by RecorderService, with no screen-waking flags. */
@@ -23,7 +27,17 @@ public final class RecordingOverlay {
     public static final int REQUEST_OVERLAY_PERMISSION = 121;
     private final Context context;
     private final WindowManager windows;
-    private TextView pill;
+    private LinearLayout pill;
+    private TextView dot, label, control, finish;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private boolean blinking;
+    private final Runnable blink = new Runnable() {
+        @Override public void run() {
+            if (!blinking || dot == null) return;
+            dot.setAlpha(dot.getAlpha() > 0.5f ? 0.2f : 1f);
+            main.postDelayed(this, 500);
+        }
+    };
     private WindowManager.LayoutParams layout;
     private boolean defaultPosition;
 
@@ -74,59 +88,89 @@ public final class RecordingOverlay {
         return true;
     }
 
-    void update(String text) {
+    void update(String text, boolean recording, boolean paused, boolean actionable) {
         if (!isEnabled(context) || !hasPermission(context) || windows == null) { close(); return; }
         try {
             if (pill == null) create();
-            pill.setText(text);
-            pill.setContentDescription(text + "，点击返回录音页面，拖动调整位置");
-            DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-            pill.measure(android.view.View.MeasureSpec.makeMeasureSpec(Math.max(1, metrics.widthPixels - dp(20)), android.view.View.MeasureSpec.AT_MOST),
-                    android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED));
-            if (defaultPosition) layout.x = Math.max(dp(4), metrics.widthPixels - pill.getMeasuredWidth() - dp(10));
+            if (!android.text.TextUtils.equals(label.getText(), text)) label.setText(text);
+            String action = paused ? "继续" : "暂停";
+            if (!android.text.TextUtils.equals(control.getText(), action)) control.setText(action);
+            control.setEnabled(actionable); finish.setEnabled(actionable);
+            control.setAlpha(actionable ? 1f : 0.4f); finish.setAlpha(actionable ? 1f : 0.4f);
+            dot.setTextColor(recording ? Color.rgb(255, 80, 80) : Color.rgb(162, 175, 180));
+            if (blinking != recording) {
+                blinking = recording; main.removeCallbacks(blink); dot.setAlpha(1f);
+                if (blinking) main.postDelayed(blink, 500);
+            }
+            DisplayMetrics metrics = screenMetrics();
+            pill.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.AT_MOST),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            if (defaultPosition) layout.x = Math.max(0, metrics.widthPixels - pill.getMeasuredWidth() - dp(8));
             clampPosition();
             windows.updateViewLayout(pill, layout);
-        } catch (RuntimeException denied) { close(); } // Optional display never interrupts microphone capture.
+        } catch (RuntimeException denied) { close(); }
+    }
+
+    private TextView item(String text, int size, int horizontalPadding) {
+        TextView view = new TextView(context);
+        view.setText(text); view.setTextSize(size); view.setTextColor(Color.WHITE);
+        view.setGravity(Gravity.CENTER); view.setSingleLine(true);
+        view.setPadding(dp(horizontalPadding), dp(12), dp(horizontalPadding), dp(12));
+        return view;
     }
 
     private void create() {
-        pill = new TextView(context);
-        pill.setTextSize(12);
-        pill.setTextColor(Color.WHITE);
-        pill.setGravity(Gravity.CENTER);
-        pill.setSingleLine(true);
-        pill.setPadding(dp(11), dp(8), dp(11), dp(8));
-        pill.setMaxWidth(Math.max(dp(80), context.getResources().getDisplayMetrics().widthPixels - dp(20)));
+        pill = new LinearLayout(context);
+        pill.setGravity(Gravity.CENTER_VERTICAL);
+        pill.setPadding(dp(3), 0, dp(3), 0);
+        dot = item("●", 15, 5);
+        label = item("启动中…", 11, 3);
+        control = item("暂停", 13, 10);
+        finish = item("■", 17, 10);
+        dot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        control.setContentDescription("暂停或继续录音"); finish.setContentDescription("结束并保存录音");
+        label.setContentDescription("录音状态和时长，点击返回录音首页");
+        pill.addView(dot); pill.addView(label); pill.addView(control); pill.addView(finish);
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.argb(232, 28, 60, 55));
-        background.setCornerRadius(dp(22));
-        background.setStroke(dp(1), Color.argb(170, 147, 203, 187));
-        pill.setBackground(background);
+        background.setColor(Color.argb(240, 28, 48, 52)); background.setCornerRadius(dp(24));
+        background.setStroke(dp(1), Color.argb(170, 147, 203, 187)); pill.setBackground(background);
         layout = new WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);
         layout.gravity = Gravity.TOP | Gravity.LEFT;
         layout.setTitle("SayAgain recording status");
         defaultPosition = !preferences(context).contains("overlay_x");
-        layout.x = preferences(context).getInt("overlay_x", Math.max(dp(4), context.getResources().getDisplayMetrics().widthPixels - dp(160)));
+        layout.x = preferences(context).getInt("overlay_x", 0);
         layout.y = preferences(context).getInt("overlay_y", dp(56));
-        pill.setOnClickListener(view -> {
+        View.OnClickListener open = view -> {
             try {
                 context.startActivity(new Intent(context, MainActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP));
-            } catch (RuntimeException unavailable) { /* Keep recording if a vendor blocks the activity launch. */ }
-        });
+            } catch (RuntimeException unavailable) { /* Recording is independent of activity launch. */ }
+        };
+        pill.setOnClickListener(open); label.setOnClickListener(open); dot.setOnClickListener(open);
+        control.setOnClickListener(view -> RecorderService.togglePauseIfRunning());
+        finish.setOnClickListener(view -> RecorderService.stopIfRunning());
+        // Every visible part can be dragged; movement suppresses its click action.
+        pill.setOnTouchListener(dragListener()); label.setOnTouchListener(dragListener());
+        dot.setOnTouchListener(dragListener()); control.setOnTouchListener(dragListener());
+        finish.setOnTouchListener(dragListener());
+        windows.addView(pill, layout);
+    }
+
+    private View.OnTouchListener dragListener() {
         final int slop = ViewConfiguration.get(context).getScaledTouchSlop();
-        pill.setOnTouchListener(new android.view.View.OnTouchListener() {
+        return new View.OnTouchListener() {
             private float downX, downY;
             private int originalX, originalY;
             private boolean moved;
-            @Override public boolean onTouch(android.view.View view, MotionEvent event) {
-                if (layout == null || pill == null) return false;
+            @Override public boolean onTouch(View view, MotionEvent event) {
+                if (layout == null || pill == null) return true;
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        defaultPosition = false; // Snapshot updates must not move a pill the user is dragging.
+                        defaultPosition = false;
                         downX = event.getRawX(); downY = event.getRawY();
                         originalX = layout.x; originalY = layout.y; moved = false; return true;
                     case MotionEvent.ACTION_MOVE:
@@ -140,28 +184,34 @@ public final class RecordingOverlay {
                         return true;
                     case MotionEvent.ACTION_UP:
                         if (moved) preferences(context).edit().putInt("overlay_x", layout.x).putInt("overlay_y", layout.y).apply();
-                        else view.performClick();
+                        else if (view.isEnabled()) view.performClick();
                         return true;
                     case MotionEvent.ACTION_CANCEL: return true;
                     default: return false;
                 }
             }
-        });
-        windows.addView(pill, layout);
+        };
+    }
+
+    private DisplayMetrics screenMetrics() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        windows.getDefaultDisplay().getRealMetrics(metrics);
+        return metrics;
     }
 
     private void clampPosition() {
         if (pill == null || layout == null) return;
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        int width = pill.getMeasuredWidth() > 0 ? pill.getMeasuredWidth() : pill.getWidth() > 0 ? pill.getWidth() : dp(150);
-        int height = pill.getHeight() > 0 ? pill.getHeight() : dp(34);
-        layout.x = Math.max(dp(4), Math.min(layout.x, Math.max(dp(4), metrics.widthPixels - width - dp(4))));
-        layout.y = Math.max(dp(4), Math.min(layout.y, Math.max(dp(4), metrics.heightPixels - height - dp(20))));
+        DisplayMetrics metrics = screenMetrics();
+        int width = Math.max(pill.getMeasuredWidth(), pill.getWidth());
+        int height = Math.max(pill.getMeasuredHeight(), pill.getHeight());
+        layout.x = Math.max(0, Math.min(layout.x, Math.max(0, metrics.widthPixels - width)));
+        layout.y = Math.max(0, Math.min(layout.y, Math.max(0, metrics.heightPixels - height)));
     }
 
     void close() {
-        TextView previous = pill;
-        pill = null; layout = null;
+        blinking = false; main.removeCallbacks(blink);
+        LinearLayout previous = pill;
+        pill = null; dot = null; label = null; control = null; finish = null; layout = null;
         if (previous != null && windows != null) {
             try { windows.removeViewImmediate(previous); } catch (RuntimeException alreadyRemoved) { /* Permission may remove it first. */ }
         }

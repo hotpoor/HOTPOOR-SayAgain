@@ -33,7 +33,7 @@ public final class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService storage = Executors.newSingleThreadExecutor();
     private TextView status, time, timeLabel, accumulated, count, pending, hint;
-    private Button record, lock, overlay;
+    private Button record, pause, lock, overlay;
     private volatile LocalSummary.Summary summary;
     private volatile String recoveryError;
     private volatile boolean recovering = true, scanning, destroyed;
@@ -91,7 +91,15 @@ public final class MainActivity extends Activity {
 
         record = button("开始录音", 17, Color.rgb(51, 119, 108));
         record.setId(R.id.recording_button);
-        column.addView(record, new LinearLayout.LayoutParams(-1, dp(57)));
+        LinearLayout controls = row();
+        pause = button("暂停", 15, Color.rgb(51, 119, 108));
+        pause.setId(R.id.pause_button);
+        LinearLayout.LayoutParams pauseLayout = new LinearLayout.LayoutParams(0, dp(57), 1);
+        pauseLayout.setMargins(0, 0, dp(9), 0);
+        controls.addView(pause, pauseLayout);
+        controls.addView(record, new LinearLayout.LayoutParams(0, dp(57), 1));
+        column.addView(controls);
+        pause.setOnClickListener(view -> RecorderService.togglePauseIfRunning());
         record.setOnClickListener(view -> {
             if (RecorderService.active) {
                 record.setEnabled(false);
@@ -161,8 +169,8 @@ public final class MainActivity extends Activity {
         if (status == null || destroyed) return;
         LocalSummary.Summary local = summary;
         SessionStore.Snapshot current = RecorderService.latest;
-        boolean recording = RecorderService.active && RecorderService.captureReady && !RecorderService.stopping;
-        String state = recovering ? "检查中" : RecorderService.stopping ? "保存中" : RecorderService.active && !RecorderService.captureReady ? "启动中" : recording ? "● 录音中" : recoveryError != null ? "需检查存储" : "未录音";
+        boolean recording = RecorderService.active && RecorderService.captureReady && !RecorderService.stopping && !RecorderService.paused;
+        String state = recovering ? "检查中" : RecorderService.stopping ? "保存中" : RecorderService.paused ? "已暂停" : RecorderService.active && !RecorderService.captureReady ? "启动中" : recording ? "● 录音中" : recoveryError != null ? "需检查存储" : "未录音";
         setText(status, state);
         status.setTextColor(recording ? Color.rgb(246, 123, 114) : MUTED);
         setText(timeLabel, RecorderService.active ? "本次录音" : "累计录音");
@@ -170,7 +178,10 @@ public final class MainActivity extends Activity {
         setText(accumulated, RecorderService.active ? "累计 " + (local != null && local.countsKnown ? duration(local.totalDurationMs) : "—") : local != null && local.countsKnown ? "音频保存在这块手表" : "正在读取本地录音");
         setText(count, local != null && local.countsKnown ? String.valueOf(local.recordingCount) + " 次" : "—");
         setText(pending, local != null && local.pendingKnown ? String.valueOf(local.pendingFileCount) + " 个" : "—");
-        setText(record, RecorderService.stopping ? "保存中…" : RecorderService.active ? "停止并保存" : "开始录音");
+        setText(record, RecorderService.stopping ? "保存中…" : RecorderService.active ? "结束保存" : "开始录音");
+        pause.setVisibility(RecorderService.active ? android.view.View.VISIBLE : android.view.View.GONE);
+        setText(pause, RecorderService.paused ? "继续录音" : "暂停");
+        pause.setEnabled(RecorderService.captureReady && !RecorderService.stopping);
         record.setEnabled(!recovering && recoveryError == null && !RecorderService.stopping);
         setText(overlay, RecordingOverlay.hasPermission(this) && RecordingOverlay.isEnabled(this) ? "浮窗 · 开" : "浮窗");
         setText(hint, recoveryError != null ? "存储异常，录音资料已保留" : local != null && !local.pendingKnown ? "待上传状态无法读取" : "本地保存 · 熄屏继续");

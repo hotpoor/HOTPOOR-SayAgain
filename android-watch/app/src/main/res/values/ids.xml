@@ -7,4 +7,5 @@
     <item name="recording_button" type="id" />
     <item name="screen_lock_button" type="id" />
     <item name="overlay_button" type="id" />
+    <item name="pause_button" type="id" />
 </resources>

@@ -34,6 +34,8 @@ public final class ContinuousRecorder {
     private volatile boolean running;
     private AudioRecord audio;
     private boolean audioStopped;
+    private volatile boolean paused;
+    private long captureEpoch;
     private CountDownLatch captureReleased;
     private CaptureQueue queue;
     private SessionStore store;
@@ -71,7 +73,7 @@ public final class ContinuousRecorder {
             if (snapshot != null) snapshot = store.preserveFailure(0, "Microphone start failed: " + e.getMessage());
             throw new IOException("Microphone start failed: " + e.getMessage(), e);
         }
-        synchronized (audioLock) { audio = candidate; audioStopped = false; }
+        synchronized (audioLock) { audio = candidate; audioStopped = false; paused = false; captureEpoch = 0; }
         stopRequested.set(false); samplesCaptured.set(0); failure.set(null);
         queue = new CaptureQueue(QUEUE_PACKETS); captureReleased = new CountDownLatch(1); running = true;
         publish(snapshot, false);
@@ -82,6 +84,24 @@ public final class ContinuousRecorder {
     /** Asynchronous: onFinished signals that AudioRecord is released and the final manifest is saved. */
     public void stop() { stopRequested.set(true); stopMicrophone(); }
     public boolean isRunning() { return running; }
+    public boolean isPaused() { return paused; }
+    /** Explicit pauses stop the microphone; automatic WAV boundaries never stop it. */
+    public void setPaused(boolean value) {
+        synchronized (audioLock) {
+            if (!running || stopRequested.get() || audio == null || paused == value) return;
+            try {
+                captureEpoch++; // A read spanning pause/resume must never enter the saved timeline.
+                if (value) { audio.stop(); audioStopped = true; paused = true; }
+                else {
+                    audio.startRecording();
+                    if (audio.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
+                        throw new IllegalStateException("Microphone did not resume");
+                    audioStopped = false; paused = false;
+                }
+                audioLock.notifyAll();
+            } catch (RuntimeException error) { fail(error); }
+        }
+    }
     public SessionStore.Snapshot getSnapshot() { return snapshot; }
 
     private void captureLoop() {
@@ -89,22 +109,39 @@ public final class ContinuousRecorder {
         try {
             while (!stopRequested.get()) {
                 AudioRecord source;
-                synchronized (audioLock) { source = audio; }
-                int bytes = source.read(buffer, 0, buffer.length, AudioRecord.READ_BLOCKING);
-                if (bytes < 0) {
+                long epoch;
+                synchronized (audioLock) {
+                    while (paused && !stopRequested.get()) audioLock.wait();
                     if (stopRequested.get()) break;
-                    if (bytes == AudioRecord.ERROR_DEAD_OBJECT) throw new IOException("Microphone ERROR_DEAD_OBJECT: audio device was disconnected or reset");
-                    throw new IOException("Microphone read failed (" + bytes + ")");
+                    source = audio; epoch = captureEpoch;
                 }
-                if (bytes == 0) {
+                int bytes;
+                try { bytes = source.read(buffer, 0, buffer.length, AudioRecord.READ_BLOCKING); }
+                catch (RuntimeException error) {
+                    synchronized (audioLock) {
+                        if (stopRequested.get()) break;
+                        if (epoch != captureEpoch) continue;
+                    }
+                    throw error;
+                }
+                synchronized (audioLock) {
                     if (stopRequested.get()) break;
-                    throw new IOException("Microphone returned no samples while recording");
+                    if (paused || epoch != captureEpoch) continue;
+                    if (bytes < 0) {
+                        if (stopRequested.get()) break;
+                        if (bytes == AudioRecord.ERROR_DEAD_OBJECT) throw new IOException("Microphone ERROR_DEAD_OBJECT: audio device was disconnected or reset");
+                        throw new IOException("Microphone read failed (" + bytes + ")");
+                    }
+                    if (bytes == 0) {
+                        if (stopRequested.get()) break;
+                        throw new IOException("Microphone returned no samples while recording");
+                    }
+                    if (bytes % 2 != 0) throw new IOException("Microphone returned an incomplete PCM16 sample");
+                    long start = samplesCaptured.getAndAdd(bytes / 2);
+                    queue.offer(buffer, bytes, start);
                 }
-                if (bytes % 2 != 0) throw new IOException("Microphone returned an incomplete PCM16 sample");
-                long start = samplesCaptured.getAndAdd(bytes / 2);
-                queue.offer(buffer, bytes, start);
             }
-        } catch (IOException | RuntimeException e) { fail(e); }
+        } catch (IOException | RuntimeException | InterruptedException e) { fail(e); }
         finally {
             stopMicrophone();
             synchronized (audioLock) {
@@ -154,6 +191,7 @@ public final class ContinuousRecorder {
 
     private void stopMicrophone() {
         synchronized (audioLock) {
+            audioLock.notifyAll();
             if (audio != null && !audioStopped) {
                 audioStopped = true;
                 try { audio.stop(); } catch (IllegalStateException ignored) { /* The read result/failure records a lost device. */ }

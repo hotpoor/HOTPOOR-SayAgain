@@ -17,12 +17,14 @@ import android.os.PowerManager;
 public final class RecorderService extends Service implements ContinuousRecorder.Listener {
     public static final String START = "world.hotpoor.sayagain.watch.START";
     public static final String STOP = "world.hotpoor.sayagain.watch.STOP";
+    public static final String TOGGLE_PAUSE = "world.hotpoor.sayagain.watch.TOGGLE_PAUSE";
     private static final String CHANNEL = "recording";
     private static final int NOTIFICATION_ID = 1;
     public static volatile SessionStore.Snapshot latest;
     public static volatile boolean active;
     public static volatile boolean captureReady;
     public static volatile boolean stopping;
+    public static volatile boolean paused;
     public static volatile String message = "准备录音";
     private static volatile RecorderService owner;
     private static volatile boolean dashboardVisible;
@@ -44,6 +46,10 @@ public final class RecorderService extends Service implements ContinuousRecorder
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && TOGGLE_PAUSE.equals(intent.getAction())) {
+            if (active) togglePauseIfRunning(); else stopSelf();
+            return START_NOT_STICKY;
+        }
         if (intent != null && STOP.equals(intent.getAction())) {
             if (active) { stopping = true; message = "正在保存最后一段"; recorder.stop(); refreshRecordingOverlay(); }
             else stopSelf();
@@ -55,6 +61,7 @@ public final class RecorderService extends Service implements ContinuousRecorder
         active = true;
         captureReady = false;
         stopping = false;
+        paused = false;
         message = "正在启动录音";
         try {
             Notification notification = notification(message);
@@ -92,7 +99,7 @@ public final class RecorderService extends Service implements ContinuousRecorder
         main.post(() -> {
             if (!active || owner != this) return;
             if (snapshot.samplesCaptured > 0 && recorder.isRunning()) captureReady = true;
-            message = stopping ? "正在保存最后一段" : captureReady ? "录音中 · " + duration(snapshot.samplesCaptured, 16000) : "正在启动录音";
+            message = stopping ? "正在保存最后一段" : paused ? "已暂停 · " + duration(snapshot.samplesCaptured, 16000) : captureReady ? "录音中 · " + duration(snapshot.samplesCaptured, 16000) : "正在启动录音";
             refreshRecordingOverlay();
             long now = android.os.SystemClock.elapsedRealtime();
             if (now - lastNotificationMs >= 5000) {
@@ -112,10 +119,12 @@ public final class RecorderService extends Service implements ContinuousRecorder
         int immutable = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | immutable);
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, RecorderService.class).setAction(STOP), PendingIntent.FLAG_UPDATE_CURRENT | immutable);
+        PendingIntent pause = PendingIntent.getService(this, 2, new Intent(this, RecorderService.class).setAction(TOGGLE_PAUSE), PendingIntent.FLAG_UPDATE_CURRENT | immutable);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(world.hotpoor.sayagain.watch.R.drawable.ic_recorder)
-            .setContentTitle(stopping ? "SayAgain 正在保存" : captureReady ? "SayAgain 正在录音" : "SayAgain 正在启动录音")
+            .setContentTitle(stopping ? "SayAgain 正在保存" : paused ? "SayAgain 已暂停" : captureReady ? "SayAgain 正在录音" : "SayAgain 正在启动录音")
             .setContentText(text).setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true)
+            .addAction(new Notification.Action.Builder(null, paused ? "继续录音" : "暂停", pause).build())
             .addAction(new Notification.Action.Builder(null, "停止并保存", stop).build()).build();
     }
 
@@ -124,6 +133,7 @@ public final class RecorderService extends Service implements ContinuousRecorder
         active = false;
         captureReady = false;
         stopping = false;
+        paused = false;
         message = text;
         if (overlay != null) overlay.close();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
@@ -136,7 +146,7 @@ public final class RecorderService extends Service implements ContinuousRecorder
         if (recorder != null && recorder.isRunning()) recorder.stop();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         if (overlay != null) overlay.close();
-        if (owner == this) { active = false; captureReady = false; owner = null; }
+        if (owner == this) { active = false; captureReady = false; paused = false; owner = null; }
         super.onDestroy();
     }
 
@@ -158,7 +168,22 @@ public final class RecorderService extends Service implements ContinuousRecorder
         if (overlay == null) return;
         if (owner != this || !active || dashboardVisible) { overlay.close(); return; }
         String elapsed = duration(latest == null ? 0 : latest.samplesCaptured, 16000);
-        overlay.update(stopping ? "保存中 " + elapsed : captureReady ? "● 录音中 " + elapsed : "启动中…");
+        overlay.update(stopping ? "保存中 " + elapsed : paused ? "已暂停 " + elapsed : captureReady ? "录音中 " + elapsed : "启动中…", captureReady && !paused && !stopping, paused, captureReady && !stopping);
+    }
+    public static void togglePauseIfRunning() {
+        RecorderService current = owner;
+        if (current == null || !active || !captureReady || stopping) return;
+        current.recorder.setPaused(!current.recorder.isPaused());
+        paused = current.recorder.isPaused();
+        message = (paused ? "已暂停 · " : "录音中 · ") + duration(latest == null ? 0 : latest.samplesCaptured, 16000);
+        current.refreshRecordingOverlay();
+        ((NotificationManager) current.getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, current.notification(message));
+    }
+    public static void stopIfRunning() {
+        RecorderService current = owner;
+        if (current == null || !active || stopping) return;
+        stopping = true; message = "正在保存最后一段";
+        current.recorder.stop(); current.refreshRecordingOverlay();
     }
     static String duration(long samples, int rate) {
         long seconds = samples / rate;
