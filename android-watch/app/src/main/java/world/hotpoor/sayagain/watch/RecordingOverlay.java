@@ -152,7 +152,10 @@ public final class RecordingOverlay {
         };
         pill.setOnClickListener(open); label.setOnClickListener(open); dot.setOnClickListener(open);
         control.setOnClickListener(view -> RecorderService.togglePauseIfRunning());
-        finish.setOnClickListener(view -> RecorderService.stopIfRunning());
+        finish.setOnClickListener(view -> {
+            open.onClick(view);
+            RecorderService.stopIfRunning();
+        });
         // Every visible part can be dragged; movement suppresses its click action.
         pill.setOnTouchListener(dragListener()); label.setOnTouchListener(dragListener());
         dot.setOnTouchListener(dragListener()); control.setOnTouchListener(dragListener());
