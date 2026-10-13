@@ -1,0 +1,3 @@
+<resources>
+    <string name="lock_admin_description">仅用于点击锁屏按钮后锁定屏幕；不更改密码，不清除数据。</string>
+</resources>

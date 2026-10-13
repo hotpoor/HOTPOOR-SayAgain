@@ -2,6 +2,8 @@
 
 原生 Java App，最低 Android 8（API 26），第一阶段在 WWS_Watch / Android 9 真机验证。它建立完整录音基线：单个 `AudioRecord` 持续采集，熄屏前台服务，独立写入线程，每 60 秒封口一份 WAV。停止后保存最后一段。界面关闭不停止录音，通知和 App 内均有停止入口。
 
+手表原型 v0.2.0 使用无滚动的一屏首页：本地录音次数、累计已保存时长、待上传文件数。录音时大字切换为本次时长，下方保留累计时长；只保留录音、锁屏和浮窗三个操作。设计借鉴 [Android 手表设计原则](https://developer.android.com/design/ui/wear/guides/foundations/design-principles)，保留旧系统可运行的原生 Java 控件。
+
 **当前交付范围**：完整录音、精确采样分片、异常恢复、ADB 导出、SayAgain 桌面会话导入。**蓝牙同步、AAC 压缩、VAD 自动丢弃静音、iOS 接收还没有实现**。当前桌面入口为“导入手表录音”；实现 BLE 后新增用户指定名称“蓝牙链接导入”，不能把本地清单导入当成蓝牙实测。
 
 ## 使用
@@ -10,6 +12,10 @@
 2. 正常熄屏；采集与文件切换由前台服务处理。通知会显示正在录音。
 3. 点击“停止并保存”，等按钮恢复为“开始录音”。关闭应用或切到桌面不会结束录音。
 4. 第一阶段通过 ADB 导出。保留每个会话文件夹中的 `manifest.json` 和 WAV，不修改其中的文件名或清单。
+
+“锁屏”首次使用需在系统中启用本 App 的锁屏授权，策略仅包含 `force-lock`；锁屏后录音继续。已启用时长按“锁屏”可撤销本 App 授权，取消授权界面不会自动锁屏。
+
+“浮窗”首次使用需允许显示在其他应用上层；录音期间切到其他应用会显示可拖动的计时状态，点击回到录音页。主界面可见时隐藏浮窗，避免遮挡数字；停止/服务销毁/权限撤销后移除。启用浮窗或从权限页返回本身不会启动录音。浮窗使用 `TYPE_APPLICATION_OVERLAY`，不要求无障碍服务，不覆盖系统锁屏；新系统或厂商可能限制其显示。
 
 ```powershell
 & .\android-watch\export-recordings.ps1 -Destination 'J:\recording-export'
@@ -22,6 +28,18 @@
 完整播放缓存从所有原始分片读取，包括识别后归档的原片；缓存损坏可按原片校验重建，不改原文件或人工笔记。已知内部缺失区间使用明确标注的静音占位，未知时长的内部中断不拼成假连续音频；末端缺失不补成原音。常见的一分钟连续保存片直接精确拼接，未结束的录音只提供已保存前缀。
 
 当前推荐停止后再导出。协议能够描述录制中已封口的前缀，但 ADB 正在复制文件时，清单与新封口文件可能处于不同快照，不能作为自动同步协议使用。
+
+## 待上传文件的确认
+
+待上传统计只包含已封口 WAV；正在写的片段和诊断文件不计入。仅设备、会话、分片 ID 和 SHA-256 都匹配的客户端 `STORED` 回执才减少该数字，复制到电脑或识别成功本身不算确认。回执缺失时文件仍待上传，回执损坏时显示未知；已同步音频继续留在手表，不自动删除。
+
+当前 ADB 流程：导出录音 → 在 SayAgain 导入 → 回传真实保存回执。确认脚本只读客户端 SQLite、校验每份原 WAV，含识别后归档的原片，并与手表已有回执合并：
+
+```powershell
+& .\android-watch\confirm-import.ps1 -DataDirectory 'C:\Users\your-name\AppData\Roaming\HOTPOOR SayAgain\data'
+```
+
+可显式提供 `-Serial`、`-Adb`、`-Node`；需要 Node >=22.13。脚本写入 `getExternalFilesDir(null)/sync-receipts.json`，统计在几秒内刷新。回执协议为 `sayagain-watch-sync-v1`，保留真实导入时间，SHA 冲突或坏历史回执会拒绝覆盖；不会改变客户端记录。后续 BLE 直接复用回执持久层，当前不是蓝牙上传实现。
 
 ## 保存与恢复
 
@@ -69,6 +87,7 @@ adb -s <device> install -r .\android-watch\build\sayagain-watch-debug.apk
 
 ```powershell
 & .\android-watch\tests\run-core-tests.ps1
+& .\android-watch\tests\run-summary-tests.ps1
 node --test tests/watch-import.test.cjs tests/recordings.test.cjs tests/speaker-pipeline.test.cjs
 node scripts/smoke-watch-import.cjs '<导出的会话目录>\manifest.json'
 ```
@@ -78,5 +97,7 @@ node scripts/smoke-watch-import.cjs '<导出的会话目录>\manifest.json'
 2026-10-12 至 2026-10-13 已完成：核心 JVM 60 项断言；两次 60 秒精确分片与 1,921,277 样本逐样本回读；异常恢复、队列溢出和低存储检测；桌面协议与现有管线回归；真实手表熄屏录音 78.4 秒、1,254,400 样本，两片首尾连续且采集/保存数量一致；进程强制退出后恢复最后一片并标记中断；真实音频后端与 Electron 按钮导入，重复导入新增零片。
 
 没有据此声称全场景零丢音：强制退出尾部未知，通话抢麦、整晚脱离充电录音、真实功耗、其他 Android 版本仍需验证。手表系统日期实测不准确，导入保留原时间并标为 `device_unverified`，不把它冒充电脑时间。
+
+2026-10-13 的 v0.2.0 验证：412×502 真机首页无滚动，滑动前后控件位置与统计一致；原有6次录音保留、24份真实回执使待上传为0；锁屏权限仅声明锁屏且取消不锁，录音中锁屏后继续采集；浮窗跨应用显示、可拖动及返回、主页隐藏、停止后移除均通过。UI联调录音207.36秒、3,317,760样本、4份文件的采样覆盖与SHA均通过；该临时测试录音已备份到忽略的测试目录并从手表清理，测试授权也已撤销。40项统计断言、60项核心录音断言和178项Node回归通过。
 
 后续按既定顺序：先测压缩与编码边界，再接 BLE 广播/GATT、续传和持久保存回执，之后用完整录音对照 VAD 的误删与预录补齐。iOS 接收需要增加会话/分片模型，长录音处理需要按批次绕开现有单次 4 小时上限。

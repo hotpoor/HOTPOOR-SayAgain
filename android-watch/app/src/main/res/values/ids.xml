@@ -1,0 +1,10 @@
+<resources>
+    <item name="dashboard" type="id" />
+    <item name="recording_status" type="id" />
+    <item name="recording_count" type="id" />
+    <item name="recording_duration" type="id" />
+    <item name="pending_uploads" type="id" />
+    <item name="recording_button" type="id" />
+    <item name="screen_lock_button" type="id" />
+    <item name="overlay_button" type="id" />
+</resources>

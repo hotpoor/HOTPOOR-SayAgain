@@ -35,8 +35,8 @@ $watchManifest = Join-Path $watchBuild 'AndroidManifest.xml'
 [xml]$watchXml = Get-Content -LiteralPath (Join-Path $watchRoot 'app\src\main\AndroidManifest.xml') -Raw
 $watchXml.manifest.SetAttribute('package', 'world.hotpoor.sayagain.watch')
 $androidNs = 'http://schemas.android.com/apk/res/android'
-$watchXml.manifest.SetAttribute('versionCode', $androidNs, '1') | Out-Null
-$watchXml.manifest.SetAttribute('versionName', $androidNs, '0.1.0') | Out-Null
+$watchXml.manifest.SetAttribute('versionCode', $androidNs, '2') | Out-Null
+$watchXml.manifest.SetAttribute('versionName', $androidNs, '0.2.0') | Out-Null
 $watchSdk = $watchXml.CreateElement('uses-sdk')
 $watchSdk.SetAttribute('minSdkVersion', $androidNs, '26') | Out-Null
 $watchSdk.SetAttribute('targetSdkVersion', $androidNs, '35') | Out-Null

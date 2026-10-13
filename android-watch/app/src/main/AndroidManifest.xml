@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
     <application android:label="SayAgain 录音" android:icon="@drawable/ic_recorder"
         android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false"
@@ -16,5 +17,13 @@
         </activity>
         <service android:name=".RecorderService" android:exported="false"
             android:foregroundServiceType="microphone" android:stopWithTask="false" />
+        <receiver android:name=".LockScreenAdminReceiver" android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:description="@string/lock_admin_description">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/lock_screen_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
