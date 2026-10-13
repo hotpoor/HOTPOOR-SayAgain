@@ -2,7 +2,7 @@
 
 原生 Java App，最低 Android 8（API 26），第一阶段在 WWS_Watch / Android 9 真机验证。它建立完整录音基线：单个 `AudioRecord` 持续采集，熄屏前台服务，独立写入线程，每 60 秒封口一份 WAV。停止后保存最后一段。界面关闭不停止录音，通知和 App 内均有停止入口。
 
-手表原型 v0.3.1 使用无滚动的一屏首页：本地录音次数、累计已保存时长、待上传文件数。录音时大字切换为本次时长，下方保留累计时长；录音时提供暂停/继续与结束保存，另有锁屏和浮窗快捷入口。设计借鉴 [Android 手表设计原则](https://developer.android.com/design/ui/wear/guides/foundations/design-principles)，保留旧系统可运行的原生 Java 控件。
+手表原型 v0.4.2 使用无滚动的一屏首页：本地录音次数、累计已保存时长、待上传文件数。录音时大字切换为本次时长，下方保留累计时长；录音时提供暂停/继续与结束保存，另有锁屏和浮窗快捷入口。设计借鉴 [Android 手表设计原则](https://developer.android.com/design/ui/wear/guides/foundations/design-principles)，保留旧系统可运行的原生 Java 控件。
 
 **当前交付范围**：完整录音、精确采样分片、异常恢复、ADB 导出、SayAgain 桌面会话导入。**蓝牙同步、AAC 压缩、VAD 自动丢弃静音、iOS 接收还没有实现**。当前桌面入口为“导入手表录音”；实现 BLE 后新增用户指定名称“蓝牙链接导入”，不能把本地清单导入当成蓝牙实测。
 
@@ -70,6 +70,10 @@
 
 正常停止时三种计数一致。录制中只导入已封口的前缀，不能为 `.partial` 返回保存确认。后端 `STORED` 只表示文件 fsync、数据库保存以及校验完成，与转写完成无关。未来蓝牙协议将复用这层应用确认，不能用蓝牙发送回调代替落盘确认。
 
+## 应用内更新
+
+首页底部点击“检查更新”。更新清单和APK已发布到 `api.xialiwei.com`，完整发布流程、签名约束及验证范围见 [UPDATES.md](UPDATES.md)。
+
 ## 构建
 
 无 AndroidX 或第三方运行依赖。可用 Android Studio / Gradle 8.9 + AGP 8.7.3 / JDK 17 构建 `app`；SDK 35，Build Tools 35.0.0。也提供独立 Windows PowerShell 构建脚本，避免必须安装完整 Android Studio：
@@ -79,7 +83,7 @@
 # 输出 android-watch/build/sayagain-watch-debug.apk
 ```
 
-默认在工作区 `.tools/android-watch` 查找 portable 工具；也支持 `JAVA_HOME` / `ANDROID_SDK_ROOT`。工具链来自 [Google SDK repository](https://dl.google.com/android/repository/repository2-1.xml) 和 [Adoptium](https://adoptium.net/)，下载包需按官方发布值校验。脚本清理仅限自身 build 子目录，生成的调试密钥和 APK 均忽略，不提交。APK 使用 Android 标准调试签名，仅供当前原型；发布版签名需另行配置。
+默认在工作区 `.tools/android-watch` 查找 portable 工具；也支持 `JAVA_HOME` / `ANDROID_SDK_ROOT`。工具链来自 [Google SDK repository](https://dl.google.com/android/repository/repository2-1.xml) 和 [Adoptium](https://adoptium.net/)，下载包需按官方发布值校验。脚本清理仅限自身 build 子目录，APK 忽略、不提交。当前沿用原型测试签名，密钥已保存在仓库外；通过 `SigningKey` 指定，密钥缺失会阻止构建。Android Studio/Gradle 的默认调试密钥可能不同，不能直接用于现有手表覆盖升级。正式发行签名管理需另行配置。
 
 ```powershell
 adb -s <device> install -r .\android-watch\build\sayagain-watch-debug.apk

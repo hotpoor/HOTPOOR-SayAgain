@@ -8,4 +8,5 @@
     <item name="screen_lock_button" type="id" />
     <item name="overlay_button" type="id" />
     <item name="pause_button" type="id" />
+    <item name="update_button" type="id" />
 </resources>

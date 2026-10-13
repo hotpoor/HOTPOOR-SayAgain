@@ -1,7 +1,10 @@
 param(
     [string]$ToolsRoot = 'J:\codex_projects\.tools\android-watch',
     [string]$JavaHome = $env:JAVA_HOME,
-    [string]$SdkRoot = $env:ANDROID_SDK_ROOT
+    [string]$SdkRoot = $env:ANDROID_SDK_ROOT,
+    [int]$VersionCode = 7,
+    [string]$VersionName = '0.4.2',
+    [string]$SigningKey = 'J:\codex_projects\.secrets\sayagain-watch.keystore'
 )
 $ErrorActionPreference = 'Stop'
 $watchRoot = $PSScriptRoot
@@ -35,8 +38,8 @@ $watchManifest = Join-Path $watchBuild 'AndroidManifest.xml'
 [xml]$watchXml = Get-Content -LiteralPath (Join-Path $watchRoot 'app\src\main\AndroidManifest.xml') -Raw
 $watchXml.manifest.SetAttribute('package', 'world.hotpoor.sayagain.watch')
 $androidNs = 'http://schemas.android.com/apk/res/android'
-$watchXml.manifest.SetAttribute('versionCode', $androidNs, '4') | Out-Null
-$watchXml.manifest.SetAttribute('versionName', $androidNs, '0.3.1') | Out-Null
+$watchXml.manifest.SetAttribute('versionCode', $androidNs, [string]$VersionCode) | Out-Null
+$watchXml.manifest.SetAttribute('versionName', $androidNs, $VersionName) | Out-Null
 $watchSdk = $watchXml.CreateElement('uses-sdk')
 $watchSdk.SetAttribute('minSdkVersion', $androidNs, '26') | Out-Null
 $watchSdk.SetAttribute('targetSdkVersion', $androidNs, '35') | Out-Null
@@ -55,10 +58,8 @@ Invoke-WatchTool (Join-Path $JavaHome 'bin\java.exe') @('-cp', (Join-Path $build
 Invoke-WatchTool (Join-Path $JavaHome 'bin\jar.exe') @('uf', $watchUnsigned, '-C', $watchDex, 'classes.dex')
 $watchAligned = Join-Path $watchBuild 'aligned.apk'
 Invoke-WatchTool (Join-Path $buildTools 'zipalign.exe') @('-f', '4', $watchUnsigned, $watchAligned)
-$watchKey = Join-Path $watchBuild 'debug.keystore'
-if (-not (Test-Path -LiteralPath $watchKey)) {
-    Invoke-WatchTool (Join-Path $JavaHome 'bin\keytool.exe') @('-genkeypair', '-keystore', $watchKey, '-storepass', 'android', '-keypass', 'android', '-alias', 'androiddebugkey', '-dname', 'CN=Android Debug,O=Android,C=US', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000')
-}
+$watchKey = $SigningKey
+if (-not (Test-Path -LiteralPath $watchKey)) { throw 'Persistent signing key missing; do not generate a different key for existing watches.' }
 $watchApk = Join-Path $watchBuild 'sayagain-watch-debug.apk'
 Invoke-WatchTool (Join-Path $JavaHome 'bin\java.exe') @('-jar', (Join-Path $buildTools 'lib\apksigner.jar'), 'sign', '--ks', $watchKey, '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', $watchApk, $watchAligned)
 Invoke-WatchTool (Join-Path $JavaHome 'bin\java.exe') @('-jar', (Join-Path $buildTools 'lib\apksigner.jar'), 'verify', '--verbose', $watchApk)

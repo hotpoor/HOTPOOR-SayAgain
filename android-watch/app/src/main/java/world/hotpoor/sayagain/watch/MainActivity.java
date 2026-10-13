@@ -133,6 +133,9 @@ public final class MainActivity extends Activity {
         });
         hint = text("本地保存 · 熄屏继续", 10, false, Gravity.CENTER);
         hint.setTextColor(MUTED);
+        hint.setId(R.id.update_button);
+        hint.setContentDescription("检查应用更新");
+        hint.setOnClickListener(view -> startActivity(new Intent(this, UpdateActivity.class)));
         column.addView(hint, new LinearLayout.LayoutParams(-1, dp(24)));
         setContentView(column);
 
@@ -184,11 +187,14 @@ public final class MainActivity extends Activity {
         pause.setEnabled(RecorderService.captureReady && !RecorderService.stopping);
         record.setEnabled(!recovering && recoveryError == null && !RecorderService.stopping);
         setText(overlay, RecordingOverlay.hasPermission(this) && RecordingOverlay.isEnabled(this) ? "浮窗 · 开" : "浮窗");
-        setText(hint, recoveryError != null ? "存储异常，录音资料已保留" : local != null && !local.pendingKnown ? "待上传状态无法读取" : "本地保存 · 熄屏继续");
+        setText(hint, recoveryError != null ? "存储异常，录音资料已保留" : local != null && !local.pendingKnown ? "待上传状态无法读取" : "熄屏继续 · 检查更新");
     }
 
     private void requestStart() {
         if (recovering || recoveryError != null) return;
+        if (UpdateActivity.installing) {
+            android.widget.Toast.makeText(this, "请先完成或取消安装更新", android.widget.Toast.LENGTH_LONG).show(); return;
+        }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 10); return;
         }

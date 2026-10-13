@@ -57,6 +57,7 @@ public final class RecorderService extends Service implements ContinuousRecorder
         }
         if (intent == null || !START.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
         if (active) return START_NOT_STICKY;
+        if (UpdateActivity.installing) { stopSelf(); return START_NOT_STICKY; }
         latest = null;
         active = true;
         captureReady = false;
