@@ -1,0 +1,24 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {Service}=require('../desktop/service.cjs'),{createWatchSyncCollection}=require('../desktop/watch-sync.cjs'),view=require('../renderer/recording-view.js');
+test('sync collections persist, deduplicate retries and leave original recordings intact',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'sayagain-sync-'));let service=new Service(dir);
+ t.after(()=>{service.close();fs.rmSync(dir,{recursive:true,force:true});});
+ const make=title=>service.update(service.createRecording({title}),{watch:{session_id:title,device_id:'watch',durable_samples:16000},watch_imported_chunks:1});
+ const a=make('a'),b=make('b'),old=make('old'),manual=service.createRecording({title:'manual'});
+ const input={recording_ids:[a.block_id,b.block_id],title:'同步合集'};
+ const collection=createWatchSyncCollection(service,input);
+ assert.equal(createWatchSyncCollection(service,{...input,id:collection.block_id}).block_id,collection.block_id);
+ assert.equal(service.store.list('recording_collection').length,1);
+ assert.equal(service.entity(a.block_id,'recording').body.title,'a');
+ assert.deepEqual(service.entity(a.block_id,'recording').body.watch,a.body.watch);
+ assert.equal(service.entity(old.block_id,'recording').body.sync_collection,undefined);
+ const before=service.store.list('recording_collection').length;
+ assert.throws(()=>createWatchSyncCollection(service,{title:'错误',recording_ids:[old.block_id,manual.block_id]}),/不可用/);
+ assert.equal(service.store.list('recording_collection').length,before);
+ assert.equal(service.entity(old.block_id,'recording').body.sync_collection,undefined);
+ assert.throws(()=>createWatchSyncCollection(service,input),/另一个/);
+ service.close();service=new Service(dir);
+ const groups=view.syncGroups(service.state().recordings),group=groups.find(g=>g.collection);
+ assert.equal(group.sessions.length,2);assert.equal(group.collection.title,'同步合集');
+ assert.equal(view.syncGroups([group.sessions[0]])[0].sessions.length,1);
+});

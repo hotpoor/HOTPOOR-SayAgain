@@ -29,5 +29,16 @@
    return {x:left+(i+.5)*span/count,height:Math.max(.5,sum/(to-from)*19)};
   });
  }
- const api={color,displayKey,displayRoster,waveBars,turnSpeakers,updated,key,turns,keys,name,roster,time,rows,transcript};if(typeof module!=='undefined')module.exports=api;else scope.recordingView=api;
+ function syncGroups(sessions){
+  const groups=[],byId=new Map();
+  for(const session of sessions){
+   const collection=session.body.sync_collection;
+   if(!collection?.id){groups.push({sessions:[session]});continue;}
+   let group=byId.get(collection.id);
+   if(!group){group={collection,sessions:[]};byId.set(collection.id,group);groups.push(group);}
+   group.sessions.push(session);
+  }
+  return groups;
+ }
+ const api={syncGroups,color,displayKey,displayRoster,waveBars,turnSpeakers,updated,key,turns,keys,name,roster,time,rows,transcript};if(typeof module!=='undefined')module.exports=api;else scope.recordingView=api;
 })(typeof window==='undefined'?{}:window);
